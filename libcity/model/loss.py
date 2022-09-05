@@ -104,7 +104,7 @@ def explained_variance_score_torch(preds, labels):
 
 def masked_rmse_np(preds, labels, null_val=np.nan):
     return np.sqrt(masked_mse_np(preds=preds, labels=labels,
-                   null_val=null_val))
+                                 null_val=null_val))
 
 
 def masked_mse_np(preds, labels, null_val=np.nan):

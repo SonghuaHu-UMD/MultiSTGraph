@@ -5,8 +5,6 @@ import os
 import datetime
 import glob
 import geopandas as gpd
-from pandas.tseries.holiday import USFederalHolidayCalendar as calendar
-import json
 
 pd.options.mode.chained_assignment = None
 results_path = r'D:\\ST_Graph\\Data\\'
@@ -47,6 +45,7 @@ CTS_Info['CTFIPS'] = CTS_Info['GISJOIN'].str[1:3] + CTS_Info['GISJOIN'].str[4:7]
 CTS_Info = CTS_Info[CTS_Info['CTFIPS'].isin(CT_Info_ls['CTFIPS'])]
 CTS_Info['CTSFIPS'] = CTS_Info['GEOID'].astype('int64').astype(str).apply(lambda x: x.zfill(10))
 CTS_Info = CTS_Info.to_crs('EPSG:4326')
+CTS_Info.to_pickle(r'D:\ST_Graph\Results\CTS_Info.pkl')
 SInCTS = gpd.sjoin(allPOI, CTS_Info, how='inner', op='within').reset_index(drop=True)
 BMCPOI = allPOI.merge(SInCTS[['safegraph_place_id', 'CTSFIPS']], on='safegraph_place_id')
 
@@ -95,7 +94,6 @@ SInCTS = gpd.sjoin(CBG_cen, CTS_Info, how='inner', op='within').reset_index(drop
 CBG_cen = CBG_cen.merge(SInCTS[['CBGFIPS', 'CTSFIPS']], on='CBGFIPS')
 CBG_CTS = CBG_cen[['CBGFIPS', 'CTSFIPS']]
 
-'''
 # Read SG visit data and output those in BMC area
 t_start = datetime.datetime(2018, 1, 1)
 t_end = datetime.datetime(2020, 11, 23)
@@ -133,9 +131,7 @@ for jj in range(0, len(range_year)):
     # Output
     week_visit.to_pickle(results_path + 'SG_Raw\\POI_BMC_Raw_' + str(range_year[jj]) + '-' + str(range_month[jj])
                          + '-' + str(range_date[jj]) + '.pkl')
-'''
 
-'''
 # Read and Process visit data in BMC area:
 t_start = datetime.datetime(2018, 1, 1)
 t_end = datetime.datetime(2020, 11, 23)
@@ -203,123 +199,3 @@ for jj in range(0, len(range_year)):
         str(range_year[jj]), str(range_month[jj]), str(range_date[jj])))
 
     print(datetime.datetime.now() - start)
-'''
-
-# Merge all and output to lib-city format
-# Dynamic
-CTS_Hourly = pd.concat(map(pd.read_pickle, glob.glob(os.path.join(r'D:\ST_Graph\Data\SG_PC', 'CTS_Visit_Hourly*.pkl'))))
-CTS_Hourly['Time'] = pd.to_datetime(CTS_Hourly['Time'])
-CTS_Hourly = CTS_Hourly.fillna(0)
-cal = calendar()
-holidays = cal.holidays(start=CTS_Hourly['Time'].dt.date.min(), end=CTS_Hourly['Time'].dt.date.max())
-CTS_Hourly['Holiday'] = CTS_Hourly['Time'].dt.date.astype('datetime64').isin(holidays).astype(int)
-CTS_Hourly = CTS_Hourly[
-    (CTS_Hourly['Time'] < datetime.datetime(2020, 1, 1)) & (CTS_Hourly['Time'] >= datetime.datetime(2019, 1, 1))]
-# CTS_Hourly.groupby(['Time']).sum().plot()
-# print(len(CTS_Hourly) / len(set(CTS_Hourly['CTSFIPS'])) / 24)
-CTS_Hourly = CTS_Hourly.sort_values(by=['CTSFIPS', 'Time']).reset_index(drop=True)
-CTS_Hourly['Time'] = CTS_Hourly['Time'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-CTS_Hourly = CTS_Hourly.reset_index()
-CTS_Hourly['type'] = 'state'
-CTS_Hourly_o = CTS_Hourly[['index', 'type', 'Time', 'CTSFIPS', 'Education', 'Others', 'Recreation',
-                           'Residential', 'Restaurant', 'Retail', 'Service']]
-CTS_Hourly_o.columns = ['dyna_id', 'type', 'time', 'entity_id', 'Education', 'Others', 'Recreation',
-                        'Residential', 'Restaurant', 'Retail', 'Service']
-CTS_Hourly_o.to_csv(r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly.dyna', index=0)
-CTS_Hourly_s = CTS_Hourly_o.copy()
-CTS_Hourly_s['Visits'] = CTS_Hourly_s[
-    ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']].sum(axis=1)
-CTS_Hourly_s[['dyna_id', 'type', 'time', 'entity_id', 'Visits']].to_csv(
-    r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly_Single.dyna', index=0)
-
-# Geo
-CTS_Info['x'] = CTS_Info.centroid.x
-CTS_Info['y'] = CTS_Info.centroid.y
-CTS_Info['coordinates'] = "[" + CTS_Info['x'].astype(str) + ', ' + CTS_Info['y'].astype(str) + "]"
-CTS_Info['type'] = 'Point'
-CTS_Info_out = CTS_Info[['CTSFIPS', 'type', 'coordinates']]
-CTS_Info_out.columns = ['geo_id', 'type', 'coordinates']
-CTS_Info_out.to_csv(r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly.geo', index=0)
-CTS_Info_out.to_csv(r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly_Single.geo', index=0)
-
-# Rel: build via OD
-CTS_OD = pd.concat(map(pd.read_pickle, glob.glob(os.path.join(r'D:\ST_Graph\Data\SG_PC', 'CTS_OD_Weekly_*.pkl'))))
-CTS_OD['Volume'] = CTS_OD[['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']].sum(
-    axis=1)
-CTS_OD = CTS_OD[['CTSFIPS_O', 'CTSFIPS_D', 'Volume']]
-CTS_OD = CTS_OD.groupby(['CTSFIPS_O', 'CTSFIPS_D']).sum().reset_index()
-CTS_D = CTS_OD.groupby(['CTSFIPS_D'])['Volume'].sum().reset_index()
-CTS_D.columns = ['CTSFIPS_D', 'Inflow']
-CTS_OD = CTS_OD.merge(CTS_D, on='CTSFIPS_D')
-CTS_OD['link_weight'] = CTS_OD['Volume'] / CTS_OD['Inflow']
-CTS_OD['type'] = 'geo'
-CTS_OD = CTS_OD.reset_index()
-CTS_OD = CTS_OD[['index', 'type', 'CTSFIPS_O', 'CTSFIPS_D', 'link_weight']]
-CTS_OD.columns = ['rel_id', 'type', 'origin_id', 'destination_id', 'link_weight']
-CTS_OD.to_csv(r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly.rel', index=0)
-CTS_OD.to_csv(r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly_Single.rel', index=0)
-
-# Ext: add holiday
-CTS_Hourly_ext = CTS_Hourly[['Time', 'Holiday']]
-CTS_Hourly_ext = CTS_Hourly_ext.drop_duplicates().reset_index(drop=True).reset_index()
-CTS_Hourly_ext.columns = ['ext_id', 'time', 'holiday']
-CTS_Hourly_ext.to_csv(r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly.ext', index=0)
-CTS_Hourly_ext.to_csv(r'D:\ST_Graph\Data\Lib_Data\SG_CTS_Hourly_Single.ext', index=0)
-
-# Configure
-config = dict()
-config['geo'] = dict()
-config['geo']['including_types'] = ['Point']
-config['geo']['Point'] = {}
-config['rel'] = dict()
-config['rel']['including_types'] = ['geo']
-config['rel']['geo'] = {'link_weight': 'num'}
-config['dyna'] = dict()
-config['dyna']['including_types'] = ['state']
-config['dyna']['state'] = {'entity_id': 'geo_id', 'Education': 'num', 'Others': 'num', 'Recreation': 'num',
-                           'Residential': 'num', 'Restaurant': 'num', 'Retail': 'num', 'Service': 'num'}
-config['ext'] = {'ext_id': 'num', 'time': 'other', 'holiday': 'num'}
-config['info'] = dict()
-config['info']['data_col'] = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']
-config['info']['weight_col'] = 'link_weight'
-config['info']['ext_col'] = ['holiday']
-config['info']['data_files'] = ['SG_CTS_Hourly']
-config['info']['geo_file'] = 'SG_CTS_Hourly'
-config['info']['rel_file'] = 'SG_CTS_Hourly'
-config['info']['ext_file'] = 'SG_CTS_Hourly'
-config['info']['output_dim'] = 7
-config['info']['time_intervals'] = 3600
-config['info']['init_weight_inf_or_zero'] = 'inf'
-config['info']['set_weight_link_or_dist'] = 'dist'
-config['info']['calculate_weight_adj'] = False
-config['info']['weight_adj_epsilon'] = 0.1
-json.dump(config, open(r'D:\ST_Graph\Data\Lib_Data\\' + 'config.json', 'w', encoding='utf-8'), ensure_ascii=False)
-
-# One output
-config = dict()
-config['geo'] = dict()
-config['geo']['including_types'] = ['Point']
-config['geo']['Point'] = {}
-config['rel'] = dict()
-config['rel']['including_types'] = ['geo']
-config['rel']['geo'] = {'link_weight': 'num'}
-config['dyna'] = dict()
-config['dyna']['including_types'] = ['state']
-config['dyna']['state'] = {'entity_id': 'geo_id', 'Visits': 'num'}
-config['ext'] = {'ext_id': 'num', 'time': 'other', 'holiday': 'num'}
-config['info'] = dict()
-config['info']['data_col'] = ['Visits']
-config['info']['weight_col'] = 'link_weight'
-config['info']['ext_col'] = ['holiday']
-config['info']['data_files'] = ['SG_CTS_Hourly_Single']
-config['info']['geo_file'] = 'SG_CTS_Hourly_Single'
-config['info']['rel_file'] = 'SG_CTS_Hourly_Single'
-config['info']['ext_file'] = 'SG_CTS_Hourly_Single'
-config['info']['output_dim'] = 1
-config['info']['time_intervals'] = 3600
-config['info']['init_weight_inf_or_zero'] = 'inf'
-config['info']['set_weight_link_or_dist'] = 'dist'
-config['info']['calculate_weight_adj'] = False
-config['info']['weight_adj_epsilon'] = 0.1
-json.dump(config, open(r'D:\ST_Graph\Data\Lib_Data\\' + 'config_Single.json', 'w', encoding='utf-8'),
-          ensure_ascii=False)

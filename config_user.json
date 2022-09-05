@@ -1,14 +1,14 @@
 {
-  "max_epoch": 1,
+  "max_epoch": 50,
   "train_rate": 0.7,
   "eval_rate": 0.15,
-  "input_window": 48,
+  "input_window": 24,
   "output_window": 24,
   "use_early_stop": true,
   "patience": 50,
   "load_external": true,
   "len_each_day": 24,
   "add_time_in_day": true,
-  "add_day_in_week": false,
+  "add_day_in_week": true,
   "teacher_forcing_ratio": 0.9
 }
