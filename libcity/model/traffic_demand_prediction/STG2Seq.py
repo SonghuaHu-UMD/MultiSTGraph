@@ -23,7 +23,8 @@ def scaled_laplacian(w):
         for j in range(n):
             if (d[i] > 0) and (d[j] > 0):
                 lap[i, j] = lap[i, j] / np.sqrt(d[i] * d[j])
-    lambda_max = eigs(lap, k=1, which='LR')[0][0].real
+    # lambda_max = eigs(lap, k=1, which='LR')[0][0].real
+    lambda_max = np.linalg.eigvals(lap).max().real
     # lambda_max \approx 2.0
     # we can replace this sentence by setting lambda_max = 2
     return 2 * lap / lambda_max - np.identity(n)
@@ -84,7 +85,7 @@ class ConvST(nn.Module):
         res_input = self.align(x)  # (B, dim_out, T, num_nodes)
         padding = torch.zeros(batch_size, self.dim_in, self.kt - 1, num_nodes).to(self.device)
         # extract spatial-temporal relationships at the same time
-        x = torch.cat((x, padding), dim=2)
+        x = torch.cat((padding, x), dim=2)
         # inputs.shape = [B, dim_in, len_time+kt-1, N]
         x = torch.stack([x[:, :, i:i + self.kt, :] for i in range(0, len_time)], dim=2)
         # inputs.shape = [B, dim_in, len_time, kt, N]
@@ -279,7 +280,7 @@ class STG2Seq(AbstractTrafficStateModel):
                 else:
                     raise ValueError('Error Set output_dim!')
                 # pred: (B, output_dim, 1, N)
-                label_padding = torch.cat((label_padding[:, :, 1:, :], pred), dim=2)
+                # label_padding = torch.cat((label_padding[:, :, 1:, :], pred), dim=2)
                 preds.append(pred)
         else:
             label_padding = inputs[:, :, -self.window:, :]  # (B, feature_dim, window, N)
@@ -307,7 +308,7 @@ class STG2Seq(AbstractTrafficStateModel):
         y_predicted = self.predict(batch)
         y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
         y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-        return loss.masked_mae_torch(y_predicted, y_true)
+        return loss.masked_mae_torch(y_predicted, y_true, 0)
 
     def predict(self, batch):
         return self.forward(batch)

@@ -1,8 +1,8 @@
 {
-  "L": 5,
-  "K": 8,
+  "L": 2,
+  "K": 2,
 
-  "batch_size": 12,
+  "batch_size": 32,
   "scaler": "standard",
   "load_external": true,
   "add_time_in_day": true,

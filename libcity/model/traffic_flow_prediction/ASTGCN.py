@@ -129,10 +129,9 @@ class ChebConvWithSAt(nn.Module):
             output = torch.zeros(batch_size, num_of_vertices, self.out_channels).to(self.DEVICE)  # (b, N, F_out)
 
             for k in range(self.K):
-
                 t_k = self.cheb_polynomials[k]  # (N,N)
 
-                t_k_with_at = t_k.mul(spatial_attention)   # (N,N)*(B,N,N) = (B,N,N) .mul->element-wise的乘法
+                t_k_with_at = t_k.mul(spatial_attention)  # (N,N)*(B,N,N) = (B,N,N) .mul->element-wise的乘法
 
                 theta_k = self.Theta[k]  # (in_channel, out_channel)
 
@@ -211,7 +210,7 @@ class ASTGCNBlock(nn.Module):
         # TAt
         temporal_at = self.TAt(x)  # (B, T, T)
 
-        x_tat = torch.matmul(x.reshape(batch_size, -1, num_of_timesteps), temporal_at)\
+        x_tat = torch.matmul(x.reshape(batch_size, -1, num_of_timesteps), temporal_at) \
             .reshape(batch_size, num_of_vertices, num_of_features, num_of_timesteps)
         # 结合时间注意力：(B, N*F_in, T) * (B, T, T) -> (B, N*F_in, T) -> (B, N, F_in, T)
 
@@ -260,7 +259,7 @@ class ASTGCNSubmodule(nn.Module):
         self.BlockList.extend([ASTGCNBlock(device, nb_time_filter, k, nb_chev_filter,
                                            nb_time_filter, 1, cheb_polynomials,
                                            num_of_vertices, output_window)
-                               for _ in range(nb_block-1)])
+                               for _ in range(nb_block - 1)])
 
         self.final_conv = nn.Conv2d(output_window, output_window,
                                     kernel_size=(1, nb_time_filter - output_dim + 1))
@@ -369,7 +368,7 @@ class ASTGCN(AbstractTrafficStateModel):
         y_predicted = self.predict(batch)
         y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
         y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-        return loss.masked_mae_torch(y_predicted, y_true)
+        return loss.masked_mae_torch(y_predicted, y_true, 0)
 
     def predict(self, batch):
         return self.forward(batch)

@@ -1,13 +1,16 @@
+####################################
+# Merge all population inflow and output to lib-city format.
+# W/O Group-based standardized
+####################################
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import datetime
 import glob
-import geopandas as gpd
 from pandas.tseries.holiday import USFederalHolidayCalendar as calendar
 import json
-import seaborn as sns
 
 pd.options.mode.chained_assignment = None
 results_path = r'D:\\ST_Graph\\Data\\'
@@ -38,13 +41,16 @@ CTS_Hourly['All'] = CTS_Hourly[POI_Type].sum(axis=1)
 CTS_Hourly_train = CTS_Hourly[CTS_Hourly['Time'] <= split_time].reset_index(drop=True)
 CTS_Hourly['Time'] = CTS_Hourly['Time'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 CTS_Hourly['type'] = 'state'
+print(CTS_Hourly.isnull().sum())
 
 # Output
 Dyna = CTS_Hourly[['index', 'type', 'Time', 'CTSFIPS'] + POI_Type]
 Dyna.columns = ['dyna_id', 'type', 'time', 'entity_id'] + POI_Type
+print(Dyna.isnull().sum())
 Dyna.to_csv(results_path + r'Lib_Data\%s\%s.dyna' % (f_na, f_na), index=0)
 Dyna_s = CTS_Hourly[['index', 'type', 'Time', 'CTSFIPS', 'All']]
 Dyna_s.columns = ['dyna_id', 'type', 'time', 'entity_id', 'Visits']
+print(Dyna_s.isnull().sum())
 Dyna_s[['dyna_id', 'type', 'time', 'entity_id', 'Visits']].to_csv(
     results_path + r'Lib_Data\%s\%s.dyna' % (f_nas, f_nas), index=0)
 
@@ -53,12 +59,14 @@ ct_visit_mean = CTS_Hourly_train.groupby(['CTSFIPS'])[POI_Type + ['All']].mean()
 ct_visit_mean.columns = ['CTSFIPS'] + [var + '_m' for var in list(ct_visit_mean.columns[1:])]
 ct_visit_std = CTS_Hourly_train.groupby(['CTSFIPS'])[POI_Type + ['All']].std().reset_index()
 ct_visit_std.columns = ['CTSFIPS'] + [var + '_std' for var in list(ct_visit_std.columns[1:])]
-ct_visit_mstd = ct_visit_mean.merge(ct_visit_std, on='CTSFIPS')
+ct_visit_mstd = ct_visit_mean.merge(ct_visit_std, on='CTSFIPS')  # some zeros exist
 ct_visit_mstd.to_pickle(r'D:\ST_Graph\Results\cts_visit_mstd.pkl')
 CTS_Hourly = CTS_Hourly.merge(ct_visit_mstd, on='CTSFIPS')
 for kk in POI_Type + ['All']: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly[kk + '_std']
+CTS_Hourly = CTS_Hourly.fillna(0)
 Dyna_gp = CTS_Hourly[['index', 'type', 'Time', 'CTSFIPS'] + POI_Type]
 Dyna_gp.columns = ['dyna_id', 'type', 'time', 'entity_id'] + POI_Type
+print(Dyna_gp.isnull().sum())
 Dyna_gp.to_csv(results_path + r'Lib_Data\%s\%s.dyna' % (f_gp, f_gp), index=0)
 Dyna_gps = CTS_Hourly[['index', 'type', 'Time', 'CTSFIPS', 'All']]
 Dyna_gps.columns = ['dyna_id', 'type', 'time', 'entity_id', 'Visits']
@@ -96,6 +104,12 @@ for kk in f_list: CTS_OD.to_csv(results_path + r'Lib_Data\%s\%s.rel' % (kk, kk),
 CTS_Hourly_ext = CTS_Hourly[['Time', 'Holiday', 'Weekend']]
 CTS_Hourly_ext = CTS_Hourly_ext.drop_duplicates().reset_index(drop=True).reset_index()
 CTS_Hourly_ext.columns = ['ext_id', 'time', 'holiday', 'weekend']
+# Ext: add weather
+weather = pd.read_pickle(r'D:\ST_Graph\Results\weather_2019_bmc.pkl')
+weather['time'] = weather['DATE'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+wlist = ['wind', 'temp', 'rain', 'snow', 'vis']
+weather[wlist] = (weather[wlist] - weather[wlist].mean()) / weather[wlist].std()
+CTS_Hourly_ext = CTS_Hourly_ext.merge(weather[wlist + ['time']], on=['time'])
 for kk in f_list: CTS_Hourly_ext.to_csv(results_path + r'Lib_Data\%s\%s.ext' % (kk, kk), index=0)
 
 # Configure: multi-POI
@@ -114,7 +128,7 @@ config['ext'] = {'ext_id': 'num', 'time': 'other', 'holiday': 'num', 'weekend': 
 config['info'] = dict()
 config['info']['data_col'] = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']
 config['info']['weight_col'] = 'link_weight'
-config['info']['ext_col'] = ['holiday']
+config['info']['ext_col'] = ['holiday', 'weekend'] + wlist
 config['info']['data_files'] = ['SG_CTS_Hourly']
 config['info']['geo_file'] = 'SG_CTS_Hourly'
 config['info']['rel_file'] = 'SG_CTS_Hourly'

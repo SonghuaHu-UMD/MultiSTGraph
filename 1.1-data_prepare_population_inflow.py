@@ -1,3 +1,9 @@
+####################################
+# Prepare population inflow data in BMC area from SafeGraph.
+# Split the inflow by POI type.
+# Prepare OD flow data for graph construction.
+####################################
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -81,6 +87,7 @@ BMCPOI.loc[BMCPOI['NAICS04'].isin(['7211', '7212', '7213']), 'top_category'] = '
 BMCPOI.loc[BMCPOI['NAICS04'].isin(['7223', '7224', '7225']), 'top_category'] = 'Restaurant'
 BMCPOI['top_category'] = BMCPOI['top_category'].fillna('Others')
 print((set(BMCPOI['top_category'])))
+BMCPOI.to_pickle(r'D:\ST_Graph\Results\BMCPOI.pkl')
 
 # SJoin: CBG to county subdivision
 CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_blck_grp_2019.shp')
@@ -93,6 +100,7 @@ CBG_cen = CBG_cen.set_crs('EPSG:4326')
 SInCTS = gpd.sjoin(CBG_cen, CTS_Info, how='inner', op='within').reset_index(drop=True)
 CBG_cen = CBG_cen.merge(SInCTS[['CBGFIPS', 'CTSFIPS']], on='CBGFIPS')
 CBG_CTS = CBG_cen[['CBGFIPS', 'CTSFIPS']]
+CBG_CTS.to_pickle(r'D:\ST_Graph\Results\CBG_CTS.pkl')
 
 # Read SG visit data and output those in BMC area
 t_start = datetime.datetime(2018, 1, 1)

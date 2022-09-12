@@ -28,7 +28,7 @@ class ASTGCNDataset(TrafficStatePointDataset):
         self.interval_period = self.config.get('interval_period', 1)  # period的长度/天
         self.interval_trend = self.config.get('interval_trend', 7)  # trend的长度/天
         self.feature_name = {'X': 'float', 'y': 'float'}
-        self.len_each_day = self.config.get('len_each_day', 24)  # hours contained in a day
+        self.hour_each_day = self.config.get('hour_each_day', 24)  # hours contained in a day
         self.parameters_str = \
             str(self.dataset) + '_' + str(self.len_closeness) \
             + '_' + str(self.len_period) + '_' + str(self.len_trend) \
@@ -93,7 +93,7 @@ class ASTGCNDataset(TrafficStatePointDataset):
 
         if self.len_trend > 0:
             trend_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.output_window,
-                                              self.len_trend, self.interval_trend * self.len_each_day)
+                                              self.len_trend, self.interval_trend * self.hour_each_day)
             if not trend_indices:
                 return None, None, None, None
             # (len_trend * self.output_window, ..., feature_dim)
@@ -101,7 +101,7 @@ class ASTGCNDataset(TrafficStatePointDataset):
 
         if self.len_period > 0:
             period_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.output_window,
-                                               self.len_period, self.interval_period * self.len_each_day)
+                                               self.len_period, self.interval_period * self.hour_each_day)
             if not period_indices:
                 return None, None, None, None
             # (len_period * self.output_window, ..., feature_dim)

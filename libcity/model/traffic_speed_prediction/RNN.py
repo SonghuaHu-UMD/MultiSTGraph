@@ -59,7 +59,7 @@ class RNN(AbstractTrafficStateModel):
         src = src.reshape(self.input_window, batch_size, self.num_nodes * self.feature_dim)
         # src = [self.input_window, batch_size, self.num_nodes * self.feature_dim]
         outputs = []
-        for i in range(self.output_window):  # generate multi-step recursively
+        for i in range(self.output_window):
             # src: [input_window, batch_size, num_nodes * feature_dim]
             out, _ = self.rnn(src)
             # out: [input_window, batch_size, hidden_size * num_directions]
@@ -71,12 +71,12 @@ class RNN(AbstractTrafficStateModel):
             if self.output_dim < self.feature_dim:  # output_dim可能小于feature_dim
                 out = torch.cat([out, target[i, :, :, self.output_dim:]], dim=-1)
             # out: [batch_size, num_nodes, feature_dim]
-            if self.training and random.random() < self.teacher_forcing_ratio:  # use the ground truth
+            if self.training and random.random() < self.teacher_forcing_ratio:
                 src = torch.cat((src[1:, :, :], target[i].reshape(
                     batch_size, self.num_nodes * self.feature_dim).unsqueeze(0)), dim=0)
             else:
                 src = torch.cat((src[1:, :, :], out.reshape(
-                    batch_size, self.num_nodes * self.feature_dim).unsqueeze(0)), dim=0)  # recursively output
+                    batch_size, self.num_nodes * self.feature_dim).unsqueeze(0)), dim=0)
         outputs = torch.stack(outputs)
         # outputs = [output_window, batch_size, num_nodes, output_dim]
         return outputs.permute(1, 0, 2, 3)

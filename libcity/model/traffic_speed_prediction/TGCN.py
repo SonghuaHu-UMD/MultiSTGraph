@@ -196,7 +196,7 @@ class TGCN(AbstractTrafficStateModel):
         # loss = torch.mean(torch.norm(y_true - y_predicted) ** 2 / 2) + lam * lreg
         # loss /= y_predicted.numel()
         return loss.masked_mae_torch(y_predicted, y_true, 0)
-        return loss
+        # return loss
 
     def predict(self, batch):
         return self.forward(batch)

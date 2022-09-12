@@ -7,8 +7,11 @@
   "use_early_stop": true,
   "patience": 50,
   "load_external": true,
-  "len_each_day": 24,
+  "hour_each_day": 24,
   "add_time_in_day": true,
-  "add_day_in_week": true,
-  "teacher_forcing_ratio": 0.9
+  "add_day_in_week": false,
+  "teacher_forcing_ratio": 0.9,
+  "interval_period": 7,
+  "interval_trend": 28,
+  "len_trend": 1
 }

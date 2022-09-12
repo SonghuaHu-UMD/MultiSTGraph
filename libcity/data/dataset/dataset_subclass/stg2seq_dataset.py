@@ -6,7 +6,6 @@ from libcity.data.dataset import TrafficStatePointDataset
 # from libcity.data.dataset import TrafficStateGridDataset
 from libcity.utils import ensure_dir
 
-
 """
 主要功能是定义了一种根据原始交通状态数据计算邻接矩阵的方法，并且保存了计算好的邻接矩阵
 当然，采用框架预定义的根据距离定义邻接矩阵的方法也是可以的
@@ -171,21 +170,22 @@ class STG2SeqDataset(TrafficStatePointDataset):
         self._logger.info("Sparsity of the adjacent matrix is: " + str(sparsity))
         return x_train, y_train, x_val, y_val, x_test, y_test
 
-    def _generate_graph_with_data(self, data, length, threshold=0.05):
+    def _generate_graph_with_data(self, data, length, threshold=0.5):
         # data shape is [sample_nums, node_nums, dims] or [sample_nums, node_nums]
         sample_nums, node_num, dim = data.shape[0], data.shape[1], data.shape[2]
         # print(data.shape)
         adj_mx = np.zeros((node_num, node_num))
         demand_zero = np.zeros((length, dim))
         for i in range(node_num):
-            node_i = data[-length:, i, :]
+            node_i = data[:-length, i, :]
             adj_mx[i, i] = 1
             if np.array_equal(node_i, demand_zero):
                 continue
             else:
                 for j in range(i + 1, node_num):
-                    node_j = data[-length:, j, :]
-                    distance = math.exp(-(np.abs((node_j - node_i)).sum() / length*dim))
+                    node_j = data[:-length, j, :]
+                    # distance = math.exp(-(np.abs((node_j - node_i)).sum() / length * dim))
+                    distance = np.corrcoef(node_i.flatten(), node_j.flatten())[0][1]
                     if distance > threshold:
                         adj_mx[i, j] = 1
                         adj_mx[j, i] = 1

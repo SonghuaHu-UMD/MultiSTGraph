@@ -2,14 +2,13 @@
   "rnn_units": 100,
   "lambda": 0.0015,
   "bidir_adj_mx": true,
-
   "scaler": "standard",
+  "batch_size": 32,
   "load_external": false,
   "normal_external": false,
   "ext_scaler": "none",
   "add_time_in_day": false,
   "add_day_in_week": false,
-
   "max_epoch": 5000,
   "learner": "adam",
   "learning_rate": 0.001,
