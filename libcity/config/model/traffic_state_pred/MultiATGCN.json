@@ -1,0 +1,29 @@
+{
+  "embed_dim": 30,
+  "rnn_units": 64,
+  "num_layers": 2,
+  "cheb_order": 2,
+  "bidir_adj_mx": true,
+  "batch_size": 32,
+  "scaler": "none",
+  "load_external": true,
+  "normal_external": false,
+  "ext_scaler": "none",
+  "add_time_in_day": false,
+  "add_day_in_week": false,
+  "max_epoch": 100,
+  "learner": "adam",
+  "learning_rate": 0.003,
+  "lr_decay": false,
+  "lr_scheduler": "multisteplr",
+  "lr_decay_ratio": 0.1,
+  "steps": [
+    5,
+    10,
+    20,
+    40
+  ],
+  "clip_grad_norm": false,
+  "use_early_stop": true,
+  "patience": 50
+}

@@ -19,7 +19,7 @@ plt.rcParams.update(
      'lines.linewidth': 1.5, 'legend.frameon': False, 'savefig.bbox': 'tight', 'savefig.pad_inches': 0.05})
 
 # Read metrics of multiple models
-filenames = glob.glob(results_path + r"gp_single\*")
+filenames = glob.glob(results_path + r"gp_single_weather\*")
 filenames = [ec for ec in filenames if 'dataset_cache' not in ec]
 all_results = pd.DataFrame()
 for ec in filenames:
@@ -27,11 +27,11 @@ for ec in filenames:
     if len(nec) > 0:
         nec = nec[0]
         fec = pd.read_csv(nec)
-        fec['Model_name'] = nec.split('_')[9]
+        fec['Model_name'] = nec.split('_')[-6]
         all_results = all_results.append(fec)
 all_results = all_results.reset_index()
 all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
-all_results_avg.to_csv(r"D:\ST_Graph\Results\results_avg_single_hourly_nonst.csv")
+all_results_avg.to_csv(r"D:\ST_Graph\Results\results_avg_single_hourly_gp_weather.csv")
 
 # Re-transform the data
 # Prepare group mean and std

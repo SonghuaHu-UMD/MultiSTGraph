@@ -238,6 +238,7 @@ class TrafficStateExecutor(AbstractExecutor):
             else:
                 lf = loss.masked_mae_torch
             return lf(y_predicted, y_true)
+
         return func
 
     def evaluate(self, test_dataloader):
@@ -257,6 +258,8 @@ class TrafficStateExecutor(AbstractExecutor):
                 batch.to_tensor(self.device)
                 output = self.model.predict(batch)
                 y_true = self._scaler.inverse_transform(batch['y'][..., :self.output_dim])
+                if self.config.get('model') == 'MultiATGCN':
+                    y_true = y_true.sum(-1, keepdims=True)
                 y_pred = self._scaler.inverse_transform(output[..., :self.output_dim])
                 y_truths.append(y_true.cpu().numpy())
                 y_preds.append(y_pred.cpu().numpy())
@@ -314,7 +317,7 @@ class TrafficStateExecutor(AbstractExecutor):
 
             if (epoch_idx % self.log_every) == 0:
                 log_lr = self.optimizer.param_groups[0]['lr']
-                message = 'Epoch [{}/{}] train_loss: {:.4f}, val_loss: {:.4f}, lr: {:.6f}, {:.2f}s'.\
+                message = 'Epoch [{}/{}] train_loss: {:.4f}, val_loss: {:.4f}, lr: {:.6f}, {:.2f}s'. \
                     format(epoch_idx, self.epochs, np.mean(losses), val_loss, log_lr, (end_time - start_time))
                 self._logger.info(message)
 

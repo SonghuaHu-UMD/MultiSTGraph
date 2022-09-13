@@ -2,8 +2,9 @@ import argparse
 from libcity.pipeline import run_model
 from libcity.utils import str2bool, add_general_args
 
-# "GRU", 'LSTM', 'RNN', 'Seq2Seq', 'FNN', 'AGCRN', 'MTGNN', 'STSGCN', 'STAGGCN', 'ASTGCN', 'STTN', 'STGCN', 'GWNET', 'TGCN','TGCLSTM', 'STG2Seq', 'GMAN', 'DCRNN'
-model_list = ['STSGCN', 'STAGGCN', 'ASTGCN', 'STTN', 'STGCN', 'GWNET', 'TGCN', 'TGCLSTM', 'STG2Seq', 'GMAN', 'DCRNN']
+# "GRU", 'LSTM', 'RNN', 'Seq2Seq', 'FNN', 'AGCRN', 'MTGNN', 'STSGCN', 'STAGGCN', 'ASTGCN', 'STTN', 'STGCN', 'GWNET','TGCN','TGCLSTM','STG2Seq', 'GMAN', 'DCRNN'
+# MultiATGCN AGCRN SG_CTS_Hourly_Single_GP SG_CTS_Hourly_GP
+model_list = ['AGCRN']
 if __name__ == '__main__':
     for model_name in model_list:
         print(model_name)

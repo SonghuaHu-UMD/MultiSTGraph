@@ -43,7 +43,7 @@ CTS_Hourly['Time'] = CTS_Hourly['Time'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 CTS_Hourly['type'] = 'state'
 print(CTS_Hourly.isnull().sum())
 
-# Output
+# Output: without normalize
 Dyna = CTS_Hourly[['index', 'type', 'Time', 'CTSFIPS'] + POI_Type]
 Dyna.columns = ['dyna_id', 'type', 'time', 'entity_id'] + POI_Type
 print(Dyna.isnull().sum())
@@ -62,7 +62,11 @@ ct_visit_std.columns = ['CTSFIPS'] + [var + '_std' for var in list(ct_visit_std.
 ct_visit_mstd = ct_visit_mean.merge(ct_visit_std, on='CTSFIPS')  # some zeros exist
 ct_visit_mstd.to_pickle(r'D:\ST_Graph\Results\cts_visit_mstd.pkl')
 CTS_Hourly = CTS_Hourly.merge(ct_visit_mstd, on='CTSFIPS')
-for kk in POI_Type + ['All']: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly[kk + '_std']
+# for kk in POI_Type + ['All']: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly[kk + '_std']
+# For comparison, do not normalize by POI type
+for kk in POI_Type: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly['All_std']
+CTS_Hourly['All'] = (CTS_Hourly['All'] - CTS_Hourly['All' + '_m']) / CTS_Hourly['All_std']
+print((CTS_Hourly['All'] - CTS_Hourly[POI_Type].sum(axis=1)).sum())
 CTS_Hourly = CTS_Hourly.fillna(0)
 Dyna_gp = CTS_Hourly[['index', 'type', 'Time', 'CTSFIPS'] + POI_Type]
 Dyna_gp.columns = ['dyna_id', 'type', 'time', 'entity_id'] + POI_Type
