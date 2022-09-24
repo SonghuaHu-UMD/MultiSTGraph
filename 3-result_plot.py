@@ -78,3 +78,21 @@ for kk in list(ct_visit_mstd['CTSFIPS'])[0:1]:
     ax.plot(temp['truth_t'], label='truth')
 plt.legend()
 plt.tight_layout()
+
+# Read metrics of multiple models: split
+filenames = glob.glob(r"C:\Users\huson\Desktop\results_record\Split\\*")
+filenames = [ec for ec in filenames if '.log' not in ec]
+all_results = pd.DataFrame()
+cc = 0
+for ec in filenames:
+    nec = glob.glob(ec + '\\evaluate_cache\\*.csv')
+    if len(nec) > 0:
+        nec = nec[0]
+        fec = pd.read_csv(nec)
+        fec['Model_name'] = cc
+        cc += 1
+        all_results = all_results.append(fec)
+all_results = all_results.reset_index()
+all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
+all_results_avg['MAE'].sum()
+

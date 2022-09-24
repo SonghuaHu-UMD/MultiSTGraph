@@ -66,30 +66,37 @@ hourly_wea_mean[['DATE', 'wind', 'temp', 'rain', 'snow', 'vis']].to_pickle(r'D:\
 
 # Add socio-economic data
 # POT INFO
-BMCPOI = pd.read_pickle(r'D:\ST_Graph\Results\BMCPOI.pkl')
-BMCPOI_count = BMCPOI.groupby(['CTSFIPS', 'top_category']).count()['safegraph_place_id'].reset_index()
-BMCPOI_count = BMCPOI_count.pivot(index='CTSFIPS', columns='top_category', values='safegraph_place_id').reset_index()
-BMCPOI_count = BMCPOI_count.fillna(0)
-
-# Income etc.
+BMCPOI = pd.read_pickle(r'D:\ST_Graph\Results\BMCPOI_0922.pkl')
 CBG_CTS = pd.read_pickle(r'D:\ST_Graph\Results\CBG_CTS.pkl')
-CBG_Features = pd.read_csv(r'E:\Research\COVID19-Socio\Data\CBG_COVID_19.csv', index_col=0)
-CBG_Features['CBGFIPS'] = CBG_Features['BGFIPS'].astype(str).apply(lambda x: x.zfill(12))
-CBG_Features = CBG_Features.merge(CBG_CTS, on='CBGFIPS')
+for sunit in ['CTSFIPS', 'CBGFIPS', 'CTractFIPS']:  # 'CBGFIPS', 'CTractFIPS'
+    BMCPOI_count = BMCPOI.groupby([sunit, 'top_category']).count()['safegraph_place_id'].reset_index()
+    BMCPOI_count = BMCPOI_count.pivot(index=sunit, columns='top_category', values='safegraph_place_id').reset_index()
+    BMCPOI_count = BMCPOI_count.fillna(0)
 
-CTS_SUM_POP = CBG_Features.groupby(['CTSFIPS']).sum()[['Total_Population', 'ALAND']].reset_index()
-CTS_SUM_POP.columns = ['CTSFIPS', 'Total_Population_CTS', 'ALAND_CTS']
-CBG_Features = CBG_Features.merge(CTS_SUM_POP, on='CTSFIPS')
+    # Income etc.
+    CBG_Features = pd.read_csv(r'E:\Research\COVID19-Socio\Data\CBG_COVID_19.csv', index_col=0)
+    CBG_Features['CBGFIPS'] = CBG_Features['BGFIPS'].astype(str).apply(lambda x: x.zfill(12))
+    CBG_Features = CBG_Features.merge(CBG_CTS, on='CBGFIPS')
+    CBG_Features['CTractFIPS'] = CBG_Features['CBGFIPS'].str[0:11]
 
-# To abs and then covert to pct
-abslist = ['Median_income', 'Democrat_R', 'Republican_R', 'Urbanized_Areas_Population_R', 'HISPANIC_LATINO_R',
-           'Black_R', 'Asian_R', 'Bt_18_44_R', 'Bt_45_64_R', 'Over_65_R', 'Male_R', 'White_Non_Hispanic_R',
-           'White_Hispanic_R', 'Education_Degree_R']
-for kk in abslist: CBG_Features[kk] = CBG_Features[kk] * CBG_Features['Total_Population']
-CBG_Features_sum = CBG_Features.groupby(['CTSFIPS']).sum()[abslist].reset_index()
-CBG_Features_sum = CBG_Features_sum.merge(CTS_SUM_POP, on='CTSFIPS')
-for kk in abslist: CBG_Features_sum[kk] = CBG_Features_sum[kk] / CBG_Features_sum['Total_Population_CTS']
+    CTS_SUM_POP = CBG_Features.groupby([sunit]).sum()[['Total_Population', 'ALAND']].reset_index()
+    CTS_SUM_POP.columns = [sunit, 'Total_Population_' + sunit, 'ALAND_' + sunit]
+    CBG_Features = CBG_Features.merge(CTS_SUM_POP, on=sunit)
 
-CTS_Socio = CBG_Features_sum[['CTSFIPS'] + abslist]
-CTS_Socio = CTS_Socio.merge(CTS_SUM_POP, on='CTSFIPS')
-CTS_Socio.to_pickle(r'D:\ST_Graph\Results\CTS_Socio_bmc.pkl')
+    # To abs and then covert to pct
+    abslist = ['Median_income', 'Democrat_R', 'Republican_R', 'Urbanized_Areas_Population_R', 'HISPANIC_LATINO_R',
+               'Black_R', 'Asian_R', 'Bt_18_44_R', 'Bt_45_64_R', 'Over_65_R', 'Male_R', 'White_Non_Hispanic_R',
+               'White_Hispanic_R', 'Education_Degree_R']
+    for kk in abslist: CBG_Features[kk] = CBG_Features[kk] * CBG_Features['Total_Population']
+    CBG_Features_sum = CBG_Features.groupby([sunit]).sum()[abslist].reset_index()
+    CBG_Features_sum = CBG_Features_sum.merge(CTS_SUM_POP, on=sunit)
+    for kk in abslist: CBG_Features_sum[kk] = CBG_Features_sum[kk] / CBG_Features_sum['Total_Population_' + sunit]
+
+    CTS_Socio = CBG_Features_sum[[sunit] + abslist]
+    CTS_Socio = CTS_Socio.merge(CTS_SUM_POP, on=sunit)
+    CTS_Socio = CTS_Socio.merge(BMCPOI_count, on=sunit)
+    CTS_Socio = CTS_Socio.sort_values(by=[sunit]).reset_index(drop=True)
+    CTS_Socio.to_pickle(r'D:\ST_Graph\Results\%s_Socio_bmc.pkl' % sunit)
+    for kk in list(CTS_Socio.columns)[1:]: CTS_Socio[kk] = (CTS_Socio[kk] - CTS_Socio[kk].mean()) / CTS_Socio[kk].std()
+    CTS_Socio.rename({sunit: 'geo_id'}, axis=1, inplace=True)
+    CTS_Socio.to_csv(r'D:\ST_Graph\Results\%s_Hourly_GP.static' % sunit, index=0)

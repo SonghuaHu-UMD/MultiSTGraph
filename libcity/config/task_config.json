@@ -209,12 +209,12 @@
       "evaluator": "TrafficStateEvaluator"
     },
     "AGCRN": {
-      "dataset_class": "ASTGCNDataset",
+      "dataset_class": "TrafficStatePointDataset",
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     },
     "MultiATGCN": {
-      "dataset_class": "ASTGCNDataset",
+      "dataset_class": "MTHDataset",
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     },

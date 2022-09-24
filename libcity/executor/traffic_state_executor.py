@@ -19,6 +19,9 @@ class TrafficStateExecutor(AbstractExecutor):
         self.device = self.config.get('device', torch.device('cpu'))
         self.model = model.to(self.device)
         self.exp_id = self.config.get('exp_id', None)
+        self.output_window = config.get('output_window', 1)
+        self.start_dim = config.get('start_dim', 0)
+        self.end_dim = config.get('end_dim', 1)
 
         self.cache_dir = './libcity/cache/{}/model_cache'.format(self.exp_id)
         self.evaluate_res_dir = './libcity/cache/{}/evaluate_cache'.format(self.exp_id)
@@ -257,10 +260,15 @@ class TrafficStateExecutor(AbstractExecutor):
             for batch in test_dataloader:
                 batch.to_tensor(self.device)
                 output = self.model.predict(batch)
-                y_true = self._scaler.inverse_transform(batch['y'][..., :self.output_dim])
                 if self.config.get('model') == 'MultiATGCN':
-                    y_true = y_true.sum(-1, keepdims=True)
-                y_pred = self._scaler.inverse_transform(output[..., :self.output_dim])
+                    # y_true = y_true.sum(-1, keepdims=True)
+                    # y_pred = y_pred.sum(-1, keepdims=True)
+                    y_true = self._scaler.inverse_transform(
+                        batch['y'][:, 0:self.output_window, :, self.start_dim:self.end_dim])
+                    y_pred = self._scaler.inverse_transform(output)
+                else:
+                    y_true = self._scaler.inverse_transform(batch['y'][..., :self.output_dim])
+                    y_pred = self._scaler.inverse_transform(output[..., :self.output_dim])
                 y_truths.append(y_true.cpu().numpy())
                 y_preds.append(y_pred.cpu().numpy())
                 # evaluate_input = {'y_true': y_true, 'y_pred': y_pred}

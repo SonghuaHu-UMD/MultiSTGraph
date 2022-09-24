@@ -16,7 +16,7 @@ ASTGCNDataset既可以继承TrafficStatePointDataset，也可以继承TrafficSta
 """
 
 
-class ASTGCNDataset(TrafficStatePointDataset):
+class MTHDataset(TrafficStatePointDataset):
 
     def __init__(self, config):
         super().__init__(config)
@@ -33,7 +33,7 @@ class ASTGCNDataset(TrafficStatePointDataset):
             str(self.dataset) + '_' + str(self.len_closeness) \
             + '_' + str(self.len_period) + '_' + str(self.len_trend) \
             + '_' + str(self.interval_period) + '_' + str(self.interval_trend) \
-            + '_' + str(self.output_window) + '_' + str(self.train_rate) \
+            + '_' + str(self.input_window) + '_' + str(self.train_rate) \
             + '_' + str(self.eval_rate) + '_' + str(self.scaler_type) \
             + '_' + str(self.batch_size) + '_' + str(self.add_time_in_day) \
             + '_' + str(self.add_day_in_week) + '_' + str(self.pad_with_last_sample)
@@ -74,7 +74,7 @@ class ASTGCNDataset(TrafficStatePointDataset):
     def _get_sample_indices(self, data_sequence, label_start_idx):
         """
         根据全局参数len_closeness/len_period/len_trend找到数据预测目标数据
-        段: [label_start_idx: label_start_idx+output_window)
+        段: [label_start_idx: label_start_idx+input_window)
 
         Args:
             data_sequence(np.ndarray): 输入数据，shape: (len_time, ..., feature_dim)
@@ -82,41 +82,41 @@ class ASTGCNDataset(TrafficStatePointDataset):
 
         Returns:
             tuple: tuple contains:
-                trend_sample: 输入数据1, (len_trend * self.output_window, ..., feature_dim) \n
-                period_sample: 输入数据2, (len_period * self.output_window, ..., feature_dim) \n
-                closeness_sample: 输入数据3, (len_closeness * self.output_window, ..., feature_dim) \n
-                target: 输出数据, (self.output_window, ..., feature_dim)
+                trend_sample: 输入数据1, (len_trend * self.input_window, ..., feature_dim) \n
+                period_sample: 输入数据2, (len_period * self.input_window, ..., feature_dim) \n
+                closeness_sample: 输入数据3, (len_closeness * self.input_window, ..., feature_dim) \n
+                target: 输出数据, (self.input_window, ..., feature_dim)
         """
         trend_sample, period_sample, closeness_sample = None, None, None
-        if label_start_idx + self.output_window > data_sequence.shape[0]:
+        if label_start_idx + self.input_window > data_sequence.shape[0]:
             return trend_sample, period_sample, closeness_sample, None
 
         if self.len_trend > 0:
-            trend_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.output_window,
+            trend_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.input_window,
                                               self.len_trend, self.interval_trend * self.hour_each_day)
             if not trend_indices:
                 return None, None, None, None
-            # (len_trend * self.output_window, ..., feature_dim)
+            # (len_trend * self.input_window, ..., feature_dim)
             trend_sample = np.concatenate([data_sequence[i: j] for i, j in trend_indices], axis=0)
 
         if self.len_period > 0:
-            period_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.output_window,
+            period_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.input_window,
                                                self.len_period, self.interval_period * self.hour_each_day)
             if not period_indices:
                 return None, None, None, None
-            # (len_period * self.output_window, ..., feature_dim)
+            # (len_period * self.input_window, ..., feature_dim)
             period_sample = np.concatenate([data_sequence[i: j] for i, j in period_indices], axis=0)
 
         if self.len_closeness > 0:
-            closeness_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.output_window,
+            closeness_indices = self._search_data(data_sequence.shape[0], label_start_idx, self.input_window,
                                                   self.len_closeness, self.input_window / self.points_per_hour)
             if not closeness_indices:
                 return None, None, None, None
-            # (len_closeness * self.output_window, ..., feature_dim)
+            # (len_closeness * self.input_window, ..., feature_dim)
             closeness_sample = np.concatenate([data_sequence[i: j] for i, j in closeness_indices], axis=0)
 
-        target = data_sequence[label_start_idx: label_start_idx + self.output_window]
-        # (self.output_window, ..., feature_dim)
+        target = data_sequence[label_start_idx: label_start_idx + self.input_window]
+        # (self.input_window, ..., feature_dim)
         return trend_sample, period_sample, closeness_sample, target
 
     def _generate_input_data(self, df):
@@ -183,7 +183,7 @@ class ASTGCNDataset(TrafficStatePointDataset):
         return {"scaler": self.scaler, "adj_mx": self.adj_mx, "static": self.static,
                 "num_nodes": self.num_nodes, "feature_dim": self.feature_dim,
                 "output_dim": self.output_dim, "ext_dim": self.ext_dim,
-                "len_closeness": self.len_closeness * self.output_window,
-                "len_period": self.len_period * self.output_window,
-                "len_trend": self.len_trend * self.output_window,
+                "len_closeness": self.len_closeness * self.input_window,
+                "len_period": self.len_period * self.input_window,
+                "len_trend": self.len_trend * self.input_window,
                 "num_batches": self.num_batches}

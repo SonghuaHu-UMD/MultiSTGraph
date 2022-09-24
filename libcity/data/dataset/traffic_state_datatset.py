@@ -23,6 +23,7 @@ class TrafficStateDataset(AbstractDataset):
         self.dataset = self.config.get('dataset', '')
         self.batch_size = self.config.get('batch_size', 64)
         self.cache_dataset = self.config.get('cache_dataset', True)
+        self.add_static = self.config.get('add_static', False)
         self.num_workers = self.config.get('num_workers', 0)
         self.pad_with_last_sample = self.config.get('pad_with_last_sample', True)
         self.train_rate = self.config.get('train_rate', 0.7)
@@ -69,6 +70,7 @@ class TrafficStateDataset(AbstractDataset):
         self.data = None
         self.feature_name = {'X': 'float', 'y': 'float'}  # 此类的输入只有X和y
         self.adj_mx = None
+        self.static = None
         self.scaler = None
         self.ext_scaler = None
         self.feature_dim = 0
@@ -959,6 +961,12 @@ class TrafficStateDataset(AbstractDataset):
             y_val[..., self.output_dim:] = self.ext_scaler.transform(y_val[..., self.output_dim:])
             x_test[..., self.output_dim:] = self.ext_scaler.transform(x_test[..., self.output_dim:])
             y_test[..., self.output_dim:] = self.ext_scaler.transform(y_test[..., self.output_dim:])
+        if self.add_static:
+            static = pd.read_csv(self.data_path + self.ext_file + '.static')
+            static = static.iloc[:, 1:]
+            self.static = np.array(static, dtype=np.float)
+        else:
+            self.static = None
         # 把训练集的X和y聚合在一起成为list，测试集验证集同理
         # x_train/y_train: (num_samples, input_length, ..., feature_dim)
         # train_data(list): train_data[i]是一个元组，由x_train[i]和y_train[i]组成

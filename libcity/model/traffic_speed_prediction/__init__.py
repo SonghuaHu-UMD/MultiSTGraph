@@ -8,8 +8,6 @@ from libcity.model.traffic_speed_prediction.Seq2Seq import Seq2Seq
 from libcity.model.traffic_speed_prediction.GMAN import GMAN
 from libcity.model.traffic_speed_prediction.STTN import STTN
 from libcity.model.traffic_speed_prediction.FNN import FNN
-from libcity.model.traffic_speed_prediction.STAGGCN import STAGGCN
-from libcity.model.traffic_speed_prediction.TGCLSTM import TGCLSTM
 
 __all__ = [
     "DCRNN",
@@ -21,6 +19,4 @@ __all__ = [
     "GMAN",
     "STTN",
     "FNN",
-    "STAGGCN",
-    "TGCLSTM"
 ]

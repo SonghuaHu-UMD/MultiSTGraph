@@ -3,7 +3,6 @@
 # Split the inflow by POI type.
 # Prepare OD flow data for graph construction.
 ####################################
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -102,6 +101,15 @@ CBG_cen = CBG_cen.merge(SInCTS[['CBGFIPS', 'CTSFIPS']], on='CBGFIPS')
 CBG_CTS = CBG_cen[['CBGFIPS', 'CTSFIPS']]
 CBG_CTS.to_pickle(r'D:\ST_Graph\Results\CBG_CTS.pkl')
 
+# SJoin: POI to CBG/Census Tract
+SInCBG = gpd.sjoin(allPOI, CBG_Info, how='inner', op='within').reset_index(drop=True)
+BMCPOI = BMCPOI.merge(SInCBG[['safegraph_place_id', 'CBGFIPS']], on='safegraph_place_id')
+BMCPOI['CTractFIPS'] = BMCPOI['CBGFIPS'].str[0:11]
+print('Len of Block Group: %s' % len(set(BMCPOI['CBGFIPS'])))
+print('Len of Census Tract: %s' % len(set(BMCPOI['CTractFIPS'])))
+print('Len of County Subdivision: %s' % len(set(BMCPOI['CTSFIPS'])))
+BMCPOI.to_pickle(r'D:\ST_Graph\Results\BMCPOI_0922.pkl')
+
 # Read SG visit data and output those in BMC area
 t_start = datetime.datetime(2018, 1, 1)
 t_end = datetime.datetime(2020, 11, 23)
@@ -146,13 +154,15 @@ t_end = datetime.datetime(2020, 11, 23)
 range_year = [d.strftime('%Y') for d in pd.date_range(t_start, t_end, freq='7D')]
 range_month = [d.strftime('%m') for d in pd.date_range(t_start, t_end, freq='7D')]
 range_date = [d.strftime('%d') for d in pd.date_range(t_start, t_end, freq='7D')]
+BMCPOI = pd.read_pickle(r'D:\ST_Graph\Results\BMCPOI_0922.pkl')
 for jj in range(0, len(range_year)):
     start = datetime.datetime.now()
     print(str(range_year[jj]) + '\\' + str(range_month[jj]) + '\\' + str(range_date[jj]))
     week_visit = pd.read_pickle(results_path + 'SG_Raw\\POI_BMC_Raw_' + str(range_year[jj]) + '-' + str(range_month[jj])
                                 + '-' + str(range_date[jj]) + '.pkl')
     week_visit = week_visit.drop('top_category', axis=1)
-    week_visit = week_visit.merge(BMCPOI[['safegraph_place_id', 'CTSFIPS', 'top_category']], on='safegraph_place_id')
+    week_visit = week_visit.merge(BMCPOI[['safegraph_place_id', 'CTSFIPS', 'CBGFIPS', 'CTractFIPS', 'top_category']],
+                                  on='safegraph_place_id')
 
     # Hourly visit by POI type
     hour_range = [d.strftime('%Y-%m-%d %H:00:00') for d in
@@ -160,24 +170,24 @@ for jj in range(0, len(range_year)):
                                 week_visit.loc[0, 'date_range_end'].split('T')[0], freq='h')][0: -1]
     hour_visit = pd.DataFrame(week_visit['visits_by_each_hour'].str[1:-1].str.split(',').tolist()).astype(int)
     hour_visit.columns = hour_range
-    hour_visit['CTSFIPS'] = week_visit['CTSFIPS']
-    hour_visit['top_category'] = week_visit['top_category']
+    hour_visit[['CTSFIPS', 'CBGFIPS', 'CTractFIPS', 'top_category']] = week_visit[
+        ['CTSFIPS', 'CBGFIPS', 'CTractFIPS', 'top_category']]
 
     # Agg by CTSFIPS
-    visit_agg = hour_visit.groupby(['top_category', 'CTSFIPS']).sum().reset_index()
-    visit_agg_m = pd.melt(visit_agg, id_vars=['top_category', 'CTSFIPS'], value_vars=hour_range)
-    visit_agg_m.columns = ['top_category', 'CTSFIPS', 'Time', 'Visits']
-    visit_agg_m = visit_agg_m.pivot(index=['CTSFIPS', 'Time'], columns='top_category', values='Visits').reset_index()
-    # visit_agg_m.groupby(['variable']).sum().plot()
+    for sunit in ['CTSFIPS', 'CBGFIPS', 'CTractFIPS']:
+        visit_agg = hour_visit.groupby(['top_category', sunit]).sum().reset_index()
+        visit_agg_m = pd.melt(visit_agg, id_vars=['top_category', sunit], value_vars=hour_range)
+        visit_agg_m.columns = ['top_category', sunit, 'Time', 'Visits']
+        visit_agg_m = visit_agg_m.pivot(index=[sunit, 'Time'], columns='top_category', values='Visits').reset_index()
 
-    # Time range
-    F_time = pd.DataFrame({'Time': len(set(visit_agg_m['CTSFIPS'])) * list(set(visit_agg_m['Time'])),
-                           'CTSFIPS': np.repeat(list(set(visit_agg_m['CTSFIPS'])), len(set(visit_agg_m['Time'])))})
-    F_time = F_time.sort_values(by=['CTSFIPS', 'Time'])
-    visit_agg_m = visit_agg_m.merge(F_time, on=['CTSFIPS', 'Time'], how='right')
+        # Fill to full time range
+        F_time = pd.DataFrame({'Time': len(set(visit_agg_m[sunit])) * list(set(visit_agg_m['Time'])),
+                               sunit: np.repeat(list(set(visit_agg_m[sunit])), len(set(visit_agg_m['Time'])))})
+        F_time = F_time.sort_values(by=[sunit, 'Time'])
+        visit_agg_m = visit_agg_m.merge(F_time, on=[sunit, 'Time'], how='right')
 
-    visit_agg_m.to_pickle(results_path + 'SG_PC\\CTS_Visit_Hourly_%s-%s-%s.pkl' % (
-        str(range_year[jj]), str(range_month[jj]), str(range_date[jj])))
+        visit_agg_m.to_pickle(results_path + 'SG_Sunit\\%s_Visit_Hourly_%s-%s-%s.pkl' % (
+            sunit, str(range_year[jj]), str(range_month[jj]), str(range_date[jj])))
 
     # Weekly OD flow by POI type
     flows_unit = []
@@ -190,20 +200,24 @@ for jj in range(0, len(range_year)):
             origin = eval(row.visitor_home_cbgs)
             for key, value in origin.items():
                 flows_unit.append([destination_id, destination_cbg, str(key).zfill(12), value])
-    cbg_flow = pd.DataFrame(flows_unit, columns=["safegraph_place_id", "cbg_d", "cbg_o", "OD_flow"])
-    CBG_CTS.columns = ['cbg_d', 'CTSFIPS_D']
-    cbg_flow = cbg_flow.merge(CBG_CTS, on='cbg_d', how='left')
-    CBG_CTS.columns = ['cbg_o', 'CTSFIPS_O']
-    cbg_flow = cbg_flow.merge(CBG_CTS, on='cbg_o', how='left')
+    cbg_flow = pd.DataFrame(flows_unit, columns=["safegraph_place_id", "CBGFIPS_D", "CBGFIPS_O", "OD_flow"])
+    CBG_CTS.columns = ['CBGFIPS_D', 'CTSFIPS_D']
+    cbg_flow = cbg_flow.merge(CBG_CTS, on='CBGFIPS_D', how='left')
+    CBG_CTS.columns = ['CBGFIPS_O', 'CTSFIPS_O']
+    cbg_flow = cbg_flow.merge(CBG_CTS, on='CBGFIPS_O', how='left')
     cbg_flow = cbg_flow.merge(BMCPOI[['safegraph_place_id', 'CTSFIPS', 'top_category']], on='safegraph_place_id')
+    cbg_flow['CTractFIPS_O'] = cbg_flow['CBGFIPS_O'].str[0:11]
+    cbg_flow['CTractFIPS_D'] = cbg_flow['CBGFIPS_D'].str[0:11]
+    cbg_flow = cbg_flow.fillna(0)
 
-    flow_poi = cbg_flow.groupby(['CTSFIPS_O', 'CTSFIPS_D', 'top_category']).sum()['OD_flow'].reset_index()
-    flow_poi = flow_poi.pivot(index=['CTSFIPS_O', 'CTSFIPS_D'], columns='top_category', values='OD_flow').reset_index()
-    flow_poi['Time'] = hour_range[0]
-    flow_poi = flow_poi.fillna(0)
-
-    # Ouput
-    flow_poi.to_pickle(results_path + 'SG_PC\\CTS_OD_Weekly_%s-%s-%s.pkl' % (
-        str(range_year[jj]), str(range_month[jj]), str(range_date[jj])))
+    for sunit in ['CTSFIPS', 'CBGFIPS', 'CTractFIPS']:
+        flow_poi = cbg_flow.groupby([sunit + '_O', sunit + '_D', 'top_category']).sum()['OD_flow'].reset_index()
+        flow_poi = flow_poi.pivot(index=[sunit + '_O', sunit + '_D'], columns='top_category',
+                                  values='OD_flow').reset_index()
+        flow_poi['Time'] = hour_range[0]
+        flow_poi = flow_poi.fillna(0)
+        # Output
+        flow_poi.to_pickle(results_path + 'SG_Sunit\\%s_OD_Weekly_%s-%s-%s.pkl' % (
+            sunit, str(range_year[jj]), str(range_month[jj]), str(range_date[jj])))
 
     print(datetime.datetime.now() - start)
