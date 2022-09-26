@@ -163,6 +163,7 @@ class TrafficStateEvaluator(AbstractEvaluator):
             self._logger.info('Evaluate result is saved at ' +
                               os.path.join(save_path, '{}.csv'.format(filename)))
             self._logger.info("\n" + str(dataframe[['MAE', 'masked_MAE', 'masked_MAPE', 'masked_RMSE']]))
+            self._logger.info("\n" + str(dataframe[['MAE', 'masked_MAE', 'masked_MAPE', 'masked_RMSE']].mean()))
         return dataframe
 
     def clear(self):

@@ -8,6 +8,8 @@ from collections import OrderedDict
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import linalg
+import pandas as pd
+from scipy.spatial.distance import cdist
 
 
 def calculate_normalized_laplacian(adj):
@@ -36,39 +38,69 @@ def calculate_scaled_laplacian(adj, lambda_max=2, undirected=False):
     return lap.astype(np.float32).todense()
 
 
+def haversine_array(lat1, lng1, lat2, lng2):
+    lat1, lng1, lat2, lng2 = map(np.radians, (lat1, lng1, lat2, lng2))
+    AVG_EARTH_RADIUS = 6371  # in km
+    lat = lat2 - lat1
+    lng = lng2 - lng1
+    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(lng * 0.5) ** 2
+    h = 2 * AVG_EARTH_RADIUS * np.arcsin(np.sqrt(d))
+    return h
+
+
+def calculate_adjacency_matrix_dist(dist_mx, weight_adj_epsilon=0.0):
+    distances = dist_mx[~np.isinf(dist_mx)].flatten()
+    std = distances.std()
+    dist_mx = np.exp(-np.square(dist_mx / std))
+    dist_mx[dist_mx < weight_adj_epsilon] = 0
+    return dist_mx
+
+
 class AGCN(nn.Module):
-    def __init__(self, dim_in, dim_out, cheb_k, embed_dim):
+    def __init__(self, dim_in, dim_out, cheb_k, embed_dim, adjtype, adpadj):
         super(AGCN, self).__init__()
         self.cheb_k = cheb_k
-        self.weights_pool = nn.Parameter(torch.FloatTensor(embed_dim, cheb_k, dim_in, dim_out))
+        self.adjtype = adjtype
+        self.adpadj = adpadj
+        if self.adjtype == 'multi' and self.adpadj in ['bidirection', 'unidirection']:
+            cheb_ks = 1 + (self.cheb_k - 1) * 4
+        elif self.adjtype == 'multi' and self.adpadj == 'none':
+            cheb_ks = 1 + (self.cheb_k - 1) * 3
+        else:
+            cheb_ks = self.cheb_k
+        # self.mlp = nn.Linear(cheb_ks, 1, bias=True)
+        self.weights_pool = nn.Parameter(torch.FloatTensor(embed_dim, cheb_ks, dim_in, dim_out))
         self.bias_pool = nn.Parameter(torch.FloatTensor(embed_dim, dim_out))
-        # self.lin1 = nn.Linear(embed_dim, embed_dim)
-        # self.lin2 = nn.Linear(embed_dim, embed_dim)
         self.alpha = 3
         self.k = embed_dim
 
-    def forward(self, x, node_emb, node_vec1, node_vec2, supports, adpadj):
+    def forward(self, x, node_emb, node_vec1, node_vec2, support_static):
         node_num = node_emb.shape[0]  # node_emb: E
-        if adpadj == 'gwnet':
-            supports = F.softmax(F.relu(torch.mm(node_vec1, node_vec2)), dim=1)
-        elif adpadj == 'agcrn':
-            supports = F.softmax(F.relu(torch.mm(node_emb, node_emb.T)), dim=1)
-        elif adpadj == 'mtgnn':
-            nodevec1 = torch.tanh(self.alpha * node_vec1)
-            nodevec2 = torch.tanh(self.alpha * node_vec2)
-            a = torch.mm(nodevec1, nodevec2) - torch.mm(nodevec2.T, nodevec1.T)
-            adj = F.relu(torch.tanh(self.alpha * a))
-            mask = torch.zeros(node_num, node_num).to(x.device)
-            mask.fill_(float('0'))
-            s1, t1 = adj.topk(self.k, 1)
-            mask.scatter_(1, t1, s1.fill_(1))
-            supports = adj * mask
+        I_mx = torch.eye(node_num).to(x.device)
+        # If using adaptive graph
+        if self.adpadj == 'bidirection':
+            support_adp = [[I_mx, F.softmax(F.relu(torch.mm(node_vec1, node_vec2)), dim=1)]]
+        elif self.adpadj == 'unidirection':
+            support_adp = [[I_mx, F.softmax(F.relu(torch.mm(node_emb, node_emb.T)), dim=1)]]
+        elif self.adpadj == 'none':
+            support_adp = None
+        # If using multi graph
+        if self.adpadj == 'none':
+            supports = support_static
         else:
-            supports = torch.FloatTensor(supports).to(x.device)
-        support_set = [torch.eye(node_num).to(x.device), supports]
-        for k in range(2, self.cheb_k):
-            support_set.append(torch.matmul(2 * supports, support_set[-1]) - support_set[-2])
-        supports = torch.stack(support_set, dim=0)
+            if self.adjtype == 'multi' and self.adpadj in ['bidirection', 'unidirection']:
+                supports = support_adp + support_static
+            elif self.adjtype != 'multi' and self.adpadj in ['bidirection', 'unidirection']:
+                supports = support_adp
+        out = [I_mx]
+        for s in range(0, len(supports)):
+            support_set = supports[s].copy()
+            support_set = [var.to(x.device) for var in support_set]
+            for k in range(2, self.cheb_k):
+                support_set.append(torch.matmul(2 * support_set[1], support_set[-1]) - support_set[-2])
+            out.extend(support_set[1:])
+        supports = torch.stack(out, dim=0).to(x.device)
+        # supports = self.mlp(supports).view(1, node_num, node_num)
         weights = torch.einsum('nd,dkio->nkio', node_emb, self.weights_pool)  # N, cheb_k, dim_in, dim_out
         bias = torch.matmul(node_emb, self.bias_pool)  # N, dim_out
         x_g = torch.einsum("knm,bmc->bknc", supports, x)  # B, cheb_k, N, dim_in
@@ -78,20 +110,20 @@ class AGCN(nn.Module):
 
 
 class ATGRUCell(nn.Module):
-    def __init__(self, node_num, dim_in, dim_out, cheb_k, embed_dim):
+    def __init__(self, node_num, dim_in, dim_out, cheb_k, embed_dim, adjtype, adpadj):
         super(ATGRUCell, self).__init__()
         self.node_num = node_num
         self.hidden_dim = dim_out
-        self.gate = AGCN(dim_in + dim_out, 2 * dim_out, cheb_k, embed_dim)
-        self.update = AGCN(dim_in + dim_out, dim_out, cheb_k, embed_dim)
+        self.gate = AGCN(dim_in + dim_out, 2 * dim_out, cheb_k, embed_dim, adjtype, adpadj)
+        self.update = AGCN(dim_in + dim_out, dim_out, cheb_k, embed_dim, adjtype, adpadj)
 
-    def forward(self, x, state, node_emb, node_vec1, node_vec2, supports, adpadj):
+    def forward(self, x, state, node_emb, node_vec1, node_vec2, supports_static):
         state = state.to(x.device)
         input_and_state = torch.cat((x, state), dim=-1)
-        z_r = torch.sigmoid(self.gate(input_and_state, node_emb, node_vec1, node_vec2, supports, adpadj))
+        z_r = torch.sigmoid(self.gate(input_and_state, node_emb, node_vec1, node_vec2, supports_static))
         z, r = torch.split(z_r, self.hidden_dim, dim=-1)
         candidate = torch.cat((x, z * state), dim=-1)
-        hc = torch.tanh(self.update(candidate, node_emb, node_vec1, node_vec2, supports, adpadj))
+        hc = torch.tanh(self.update(candidate, node_emb, node_vec1, node_vec2, supports_static))
         h = r * state + (1 - r) * hc
         return h
 
@@ -107,16 +139,18 @@ class ATGRUEncoder(nn.Module):
         self.hidden_dim = config.get('rnn_units', 64)
         self.embed_dim = config.get('embed_dim', 10)
         self.num_layers = config.get('num_layers', 2)
+        self.adjtype = config.get('adjtype', 'od')
+        self.adpadj = config.get('adpadj', 'bidirection')
         self.cheb_k = config.get('cheb_order', 2)
         assert self.num_layers >= 1, 'At least one DCRNN layer in the Encoder'
         self.agru_cells = nn.ModuleList()
-        self.agru_cells.append(
-            ATGRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k, self.embed_dim))
+        self.agru_cells.append(ATGRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k,
+                                         self.embed_dim, self.adjtype, self.adpadj))
         for _ in range(1, self.num_layers):
-            self.agru_cells.append(
-                ATGRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k, self.embed_dim))
+            self.agru_cells.append(ATGRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k,
+                                             self.embed_dim, self.adjtype, self.adpadj))
 
-    def forward(self, x, init_state, node_emb, node_vec1, node_vec2, supports, adpadj):
+    def forward(self, x, init_state, node_emb, node_vec1, node_vec2, supports):
         assert x.shape[2] == self.num_nodes
         seq_length = x.shape[1]
         current_inputs = x
@@ -125,8 +159,7 @@ class ATGRUEncoder(nn.Module):
             state = init_state[i]
             inner_states = []
             for t in range(seq_length):
-                state = self.agru_cells[i](
-                    current_inputs[:, t, :, :], state, node_emb, node_vec1, node_vec2, supports, adpadj)
+                state = self.agru_cells[i](current_inputs[:, t, :, :], state, node_emb, node_vec1, node_vec2, supports)
                 inner_states.append(state)
             output_hidden.append(state)
             current_inputs = torch.stack(inner_states, dim=1)
@@ -151,21 +184,56 @@ class MultiATGCN(AbstractTrafficStateModel):
         config['num_nodes'] = self.num_nodes
         self.embed_dim = config.get('embed_dim', 10)
 
-        # Adjacent matrix
-        self.adj_mx = torch.FloatTensor(self.data_feature.get('adj_mx', None))
-        self.adjtype = config.get('adjtype', "scalap")
-        self.supports = self.cal_supports(self.adj_mx, self.adjtype)
-        self.adpadj = config.get('adpadj', "gwnet")
+        # Adjacent matrix: OD
+        self.adj_mx_od = torch.FloatTensor(self.data_feature.get('adj_mx', None))
+
+        # Adjacent matrix: semantic similarity
+        static = data_feature.get('static', None)
+        static_euc = cdist(static, static, metric='euclidean')
+        static_euc[static_euc == 0] = 1
+        self.adj_mx_cos = torch.FloatTensor(1 / static_euc)
+
+        # Adjacent matrix: Distance
+        geo_coor = data_feature.get('coordinate', None)
+        geo_coor[['x', 'y']] = geo_coor['coordinates']. \
+            str.replace('[', ',').str.replace(']', ',').str.split(r',', expand=True)[[1, 2]].astype(float)
+        geo_mx = pd.concat([geo_coor] * len(geo_coor), ignore_index=True)
+        geo_mx[['geo_id_1', 'x_1', 'y_1']] = geo_coor.loc[
+            geo_coor.index.repeat(len(geo_coor)), ['geo_id', 'x', 'y']].reset_index(drop=True)
+        geo_mx['dist'] = haversine_array(geo_mx['y'], geo_mx['x'], geo_mx['y_1'], geo_mx['x_1'])
+        geo_mx = geo_mx.pivot(index='geo_id', columns='geo_id_1', values='dist').values
+        self.adj_mx_dis = torch.FloatTensor(calculate_adjacency_matrix_dist(geo_mx, 0.0))
+
+        self.adpadj = config.get('adpadj', "bidirection")
+        self.adjtype = config.get('adjtype', "od")
+        I_mx = torch.eye(self.num_nodes)
+        if self.adjtype == 'multi':
+            self.adj_mx = self.adj_mx_od
+            self.supports = [[I_mx, torch.FloatTensor(calculate_scaled_laplacian(self.adj_mx_od))],
+                             [I_mx, torch.FloatTensor(calculate_scaled_laplacian(self.adj_mx_dis))],
+                             [I_mx, torch.FloatTensor(calculate_scaled_laplacian(self.adj_mx_cos))]]
+        elif self.adjtype == 'od':
+            self.adj_mx = self.adj_mx_od
+            self.supports = [[I_mx, torch.FloatTensor(calculate_scaled_laplacian(self.adj_mx))]]
+        elif self.adjtype == 'dist':
+            self.adj_mx = self.adj_mx_dis
+            self.supports = [[I_mx, torch.FloatTensor(calculate_scaled_laplacian(self.adj_mx))]]
+        elif self.adjtype == 'cosine':
+            self.adj_mx = self.adj_mx_cos
+            self.supports = [[I_mx, torch.FloatTensor(calculate_scaled_laplacian(self.adj_mx))]]
+        elif self.adjtype == 'identity':
+            self.adj_mx = I_mx
+            self.supports = [[I_mx, I_mx]]
 
         # Define adaptive node embedding and graph matrix
         self.static = torch.FloatTensor(data_feature.get('static', None)).to(self.device)
-        self.static_fc0 = nn.Sequential(OrderedDict(
+        self.static_initial = nn.Sequential(OrderedDict(
             [('embd', nn.Linear(min(self.num_nodes, 20), self.embed_dim, bias=True)), ('relu1', nn.ReLU())])).to(
             self.device)
         if self.static is not None:
             u, s, v = torch.pca_lowrank(self.static, q=min(self.num_nodes, 20))
             initemb = torch.matmul(self.static, v)
-            initemb = self.static_fc0(initemb)
+            initemb = self.static_initial(initemb)
             self.node_emb = nn.Parameter(initemb, requires_grad=True)
         else:
             self.node_emb = nn.Parameter(torch.randn(self.num_nodes, self.embed_dim), requires_grad=True)
@@ -218,17 +286,8 @@ class MultiATGCN(AbstractTrafficStateModel):
             else:
                 nn.init.uniform_(p)
 
-    def cal_supports(self, adj_mx, adjtype):
-        if adjtype == "scalap":
-            supports = calculate_scaled_laplacian(adj_mx)
-        elif adjtype == "identity":
-            supports = np.diag(np.ones(adj_mx.shape[0])).astype(np.float32)
-        else:
-            print("adj type not defined")
-        return supports
-
     def forward(self, batch):
-        # source: get all features except time index
+        # Source: get all features except time index
         source = torch.cat((batch['X'][:, :, :, self.start_dim:self.end_dim],
                             batch['X'][:, :, :, -self.ext_dim + self.time_index_dim:]), dim=-1)
 
@@ -270,7 +329,7 @@ class MultiATGCN(AbstractTrafficStateModel):
             static_embedding = self.static_fc(self.static)
             init_state = static_embedding.expand(init_state.shape[0], init_state.shape[1], -1, -1)
         output, output_hidden = self.encoder(output, init_state, self.node_emb, self.node_vec1, self.node_vec2,
-                                             self.supports, self.adpadj)
+                                             self.supports)
 
         # CNN based output
         output = F.dropout(output, p=0.1, training=self.training)

@@ -12,20 +12,25 @@ import glob
 from pandas.tseries.holiday import USFederalHolidayCalendar as calendar
 import json
 import os
+import geopandas as gpd
 
 pd.options.mode.chained_assignment = None
 results_path = r'D:\\ST_Graph\\Data\\'
-t_s = datetime.datetime(2019, 3, 1)  # datetime.datetime(2019, 1, 1)
-t_e = datetime.datetime(2019, 7, 1)  # datetime.datetime(2020, 3, 1)
+geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
+t_s = datetime.datetime(2020, 1, 1)  # datetime.datetime(2019, 3, 1)  # datetime.datetime(2019, 1, 1)
+t_e = datetime.datetime(2020, 4, 1)  # datetime.datetime(2019, 7, 1)  # datetime.datetime(2020, 3, 1)
 t_days = (t_e - t_s).days
 train_ratio = 0.7
 split_time = t_s + datetime.timedelta(days=int(((t_e - t_s).total_seconds() / (24 * 3600)) * train_ratio))
+print(split_time)
 POI_Type = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']
 # CTS_Info = pd.read_pickle(r'D:\ST_Graph\Results\CTS_Info.pkl')
 # CTS_Info.plot()
 # CTS_Info = CTS_Info[CTS_Info['CTFIPS'].isin(['24510', '24005', '24027', '24003'])]
-for sunit in ['CTractFIPS', 'CTSFIPS', 'CBGFIPS']:
-    f_na, f_nas, f_gp, f_gps = 'SG_%s_Hourly' % sunit, 'SG_%s_Hourly_Single' % sunit, 'SG_%s_Hourly_GP' % sunit, 'SG_%s_Hourly_Single_GP' % sunit
+is_cov = 'COVID01010401'
+for sunit in ['CTSFIPS', 'CTractFIPS', 'CBGFIPS']:
+    f_na, f_nas, f_gp, f_gps = '%s_SG_%s_Hourly' % (is_cov, sunit), '%s_SG_%s_Hourly_Single' % (
+        is_cov, sunit), '%s_SG_%s_Hourly_GP' % (is_cov, sunit), '%s_SG_%s_Hourly_Single_GP' % (is_cov, sunit)
     f_list = [f_na, f_nas, f_gp, f_gps]
     d_list = [results_path + 'Lib_Data\\' + var for var in f_list]
     for directory in d_list:
@@ -39,6 +44,7 @@ for sunit in ['CTractFIPS', 'CTSFIPS', 'CBGFIPS']:
     CTS_Hourly = CTS_Hourly.fillna(0)
     CTS_Hourly['CTFIPS'] = CTS_Hourly[sunit].str[0:5]
     CTS_Hourly = CTS_Hourly[CTS_Hourly['CTFIPS'].isin(['24510', '24005'])].reset_index(drop=True)
+    # CTS_Hourly[1:].groupby('Time').sum().plot()
 
     # Drop those without fully days
     n_days = CTS_Hourly.groupby([sunit])['Time'].count().reset_index()
@@ -103,7 +109,19 @@ for sunit in ['CTractFIPS', 'CTSFIPS', 'CBGFIPS']:
     # CTS_Info['coordinates'] = "[" + CTS_Info['x'].astype(str) + ', ' + CTS_Info['y'].astype(str) + "]"
     Geo_Info = CTS_Hourly.drop_duplicates(subset=sunit).reset_index(drop=True)
     Geo_Info = Geo_Info[[sunit]]
-    Geo_Info['coordinates'] = "[]"
+    # Add lat/lng
+    if sunit == 'CTSFIPS':
+        CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_cty_sub_2019.shp')
+    elif sunit == 'CTractFIPS':
+        CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_tract_2019.shp')
+    elif sunit == 'CBGFIPS':
+        CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_blck_grp_2019.shp')
+    CBG_Info = CBG_Info[CBG_Info['GEOID'].isin(Geo_Info[sunit])]
+    print(len(CBG_Info) == len(Geo_Info))
+    CBG_Info = CBG_Info.to_crs("EPSG:4326")
+    CBG_cen = pd.DataFrame({sunit: CBG_Info['GEOID'], 'x': CBG_Info.centroid.x, 'y': CBG_Info.centroid.y}).reset_index(
+        drop=True)
+    Geo_Info['coordinates'] = "[" + CBG_cen['x'].astype(str) + ', ' + CBG_cen['y'].astype(str) + "]"
     Geo_Info['type'] = 'Point'
     Geo_Info = Geo_Info[[sunit, 'type', 'coordinates']]
     Geo_Info.columns = ['geo_id', 'type', 'coordinates']
@@ -130,9 +148,11 @@ for sunit in ['CTractFIPS', 'CTSFIPS', 'CBGFIPS']:
     CTS_OD = CTS_OD.merge(CTS_OD_f, on=[sunit + '_O', sunit + '_D'], how='right')
     CTS_OD = CTS_OD.fillna(0).reset_index()
     CTS_OD['type'] = 'geo'
-    CTS_OD = CTS_OD[['index', 'type', sunit + '_O', sunit + '_D', 'link_weight']]
-    CTS_OD.columns = ['rel_id', 'type', 'origin_id', 'destination_id', 'link_weight']
+    CTS_OD = CTS_OD[['type', sunit + '_O', sunit + '_D', 'link_weight']]
+    CTS_OD.columns = ['type', 'origin_id', 'destination_id', 'link_weight']
     print(np.sqrt(CTS_OD.shape[0]))
+    CTS_OD = CTS_OD.sort_values(by=['origin_id', 'destination_id']).reset_index(drop=True).reset_index()
+    CTS_OD.rename({'index': 'rel_id'}, axis=1, inplace=True)
     for kk in f_list: CTS_OD.to_csv(results_path + r'Lib_Data\%s\%s.rel' % (kk, kk), index=0)
 
     # Ext: add holiday and weekend
@@ -174,10 +194,10 @@ for sunit in ['CTractFIPS', 'CTSFIPS', 'CBGFIPS']:
     config['info']['data_col'] = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']
     config['info']['weight_col'] = 'link_weight'
     config['info']['ext_col'] = ['holiday', 'weekend'] + wlist
-    config['info']['data_files'] = ['SG_%s_Hourly' % sunit]
-    config['info']['geo_file'] = 'SG_%s_Hourly' % sunit
-    config['info']['rel_file'] = 'SG_%s_Hourly' % sunit
-    config['info']['ext_file'] = 'SG_%s_Hourly' % sunit
+    config['info']['data_files'] = ['%s_SG_%s_Hourly' % (is_cov, sunit)]
+    config['info']['geo_file'] = '%s_SG_%s_Hourly' % (is_cov, sunit)
+    config['info']['rel_file'] = '%s_SG_%s_Hourly' % (is_cov, sunit)
+    config['info']['ext_file'] = '%s_SG_%s_Hourly' % (is_cov, sunit)
     config['info']['output_dim'] = 7
     config['info']['time_intervals'] = 3600
     config['info']['init_weight_inf_or_zero'] = 'zero'
@@ -185,25 +205,26 @@ for sunit in ['CTractFIPS', 'CTSFIPS', 'CBGFIPS']:
     config['info']['calculate_weight_adj'] = False
     config['info']['weight_adj_epsilon'] = 0.1
     json.dump(config, open(results_path + r'Lib_Data\%s\config.json' % f_na, 'w', encoding='utf-8'), ensure_ascii=False)
-    config['info']['data_files'] = ['SG_%s_Hourly_GP' % sunit]
-    config['info']['geo_file'] = 'SG_%s_Hourly_GP' % sunit
-    config['info']['rel_file'] = 'SG_%s_Hourly_GP' % sunit
-    config['info']['ext_file'] = 'SG_%s_Hourly_GP' % sunit
+    config['info']['data_files'] = ['%s_SG_%s_Hourly_GP' % (is_cov, sunit)]
+    config['info']['geo_file'] = '%s_SG_%s_Hourly_GP' % (is_cov, sunit)
+    config['info']['rel_file'] = '%s_SG_%s_Hourly_GP' % (is_cov, sunit)
+    config['info']['ext_file'] = '%s_SG_%s_Hourly_GP' % (is_cov, sunit)
     json.dump(config, open(results_path + r'Lib_Data\%s\config.json' % f_gp, 'w', encoding='utf-8'), ensure_ascii=False)
 
     # Configure: Single POI
     config['dyna']['state'] = {'entity_id': 'geo_id', 'Visits': 'num'}
     config['info']['data_col'] = ['Visits']
-    config['info']['data_files'] = ['SG_%s_Hourly_Single' % sunit]
-    config['info']['geo_file'] = 'SG_%s_Hourly_Single' % sunit
-    config['info']['rel_file'] = 'SG_%s_Hourly_Single' % sunit
-    config['info']['ext_file'] = 'SG_%s_Hourly_Single' % sunit
+    config['info']['data_files'] = ['%s_SG_%s_Hourly_Single' % (is_cov, sunit)]
+    config['info']['geo_file'] = '%s_SG_%s_Hourly_Single' % (is_cov, sunit)
+    config['info']['rel_file'] = '%s_SG_%s_Hourly_Single' % (is_cov, sunit)
+    config['info']['ext_file'] = '%s_SG_%s_Hourly_Single' % (is_cov, sunit)
     config['info']['output_dim'] = 1
     json.dump(config, open(results_path + r'Lib_Data\%s\config.json' % f_nas, 'w', encoding='utf-8'),
               ensure_ascii=False)
-    config['info']['data_files'] = ['SG_%s_Hourly_Single_GP' % sunit]
-    config['info']['geo_file'] = 'SG_%s_Hourly_Single_GP' % sunit
-    config['info']['rel_file'] = 'SG_%s_Hourly_Single_GP' % sunit
-    config['info']['ext_file'] = 'SG_%s_Hourly_Single_GP' % sunit
+    config['info']['data_files'] = ['%s_SG_%s_Hourly_Single_GP' % (is_cov, sunit)]
+    config['info']['geo_file'] = '%s_SG_%s_Hourly_Single_GP' % (is_cov, sunit)
+    config['info']['rel_file'] = '%s_SG_%s_Hourly_Single_GP' % (is_cov, sunit)
+    config['info']['ext_file'] = '%s_SG_%s_Hourly_Single_GP' % (is_cov, sunit)
     json.dump(config, open(results_path + r'Lib_Data\%s\config.json' % f_gps, 'w', encoding='utf-8'),
               ensure_ascii=False)
+    print('------------------Finished: %s!!-----------------' % sunit)

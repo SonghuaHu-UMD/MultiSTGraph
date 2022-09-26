@@ -71,6 +71,7 @@ class TrafficStateDataset(AbstractDataset):
         self.feature_name = {'X': 'float', 'y': 'float'}  # 此类的输入只有X和y
         self.adj_mx = None
         self.static = None
+        self.coordinate = None
         self.scaler = None
         self.ext_scaler = None
         self.feature_dim = 0
@@ -967,6 +968,8 @@ class TrafficStateDataset(AbstractDataset):
             self.static = np.array(static, dtype=np.float)
         else:
             self.static = None
+        self.coordinate = pd.read_csv(self.data_path + self.ext_file + '.geo')
+
         # 把训练集的X和y聚合在一起成为list，测试集验证集同理
         # x_train/y_train: (num_samples, input_length, ..., feature_dim)
         # train_data(list): train_data[i]是一个元组，由x_train[i]和y_train[i]组成

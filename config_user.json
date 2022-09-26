@@ -1,9 +1,9 @@
 {
-  "max_epoch": 20,
+  "max_epoch": 10,
   "train_rate": 0.7,
   "eval_rate": 0.15,
   "input_window": 24,
-  "output_window": 12,
+  "output_window": 24,
   "load_external": true,
   "add_time_in_day": true,
   "add_day_in_week": false,
