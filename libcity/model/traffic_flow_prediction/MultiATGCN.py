@@ -1,14 +1,14 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import numpy as np
+import pandas as pd
 from logging import getLogger
 from libcity.model.abstract_traffic_state_model import AbstractTrafficStateModel
 from libcity.model import loss
 from collections import OrderedDict
-import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import linalg
-import pandas as pd
 from scipy.spatial.distance import cdist
 
 
@@ -68,7 +68,6 @@ class AGCN(nn.Module):
             cheb_ks = 1 + (self.cheb_k - 1) * 3
         else:
             cheb_ks = self.cheb_k
-        # self.mlp = nn.Linear(cheb_ks, 1, bias=True)
         self.weights_pool = nn.Parameter(torch.FloatTensor(embed_dim, cheb_ks, dim_in, dim_out))
         self.bias_pool = nn.Parameter(torch.FloatTensor(embed_dim, dim_out))
         self.alpha = 3
@@ -101,11 +100,11 @@ class AGCN(nn.Module):
             out.extend(support_set[1:])
         supports = torch.stack(out, dim=0).to(x.device)
         # supports = self.mlp(supports).view(1, node_num, node_num)
-        weights = torch.einsum('nd,dkio->nkio', node_emb, self.weights_pool)  # N, cheb_k, dim_in, dim_out
-        bias = torch.matmul(node_emb, self.bias_pool)  # N, dim_out
-        x_g = torch.einsum("knm,bmc->bknc", supports, x)  # B, cheb_k, N, dim_in
-        x_g = x_g.permute(0, 2, 1, 3)  # B, N, cheb_k, dim_in
-        x_gconv = torch.einsum('bnki,nkio->bno', x_g, weights) + bias  # b, N, dim_out
+        weights = torch.einsum('nd,dkio->nkio', node_emb, self.weights_pool)
+        bias = torch.matmul(node_emb, self.bias_pool)
+        x_g = torch.einsum("knm,bmc->bknc", supports, x)
+        x_g = x_g.permute(0, 2, 1, 3)
+        x_gconv = torch.einsum('bnki,nkio->bno', x_g, weights) + bias
         return x_gconv
 
 
@@ -169,7 +168,7 @@ class ATGRUEncoder(nn.Module):
         init_states = []
         for i in range(self.num_layers):
             init_states.append(self.agru_cells[i].init_hidden_state(batch_size))
-        return torch.stack(init_states, dim=0)  # (num_layers, B, N, hidden_dim)
+        return torch.stack(init_states, dim=0)
 
 
 class MultiATGCN(AbstractTrafficStateModel):
@@ -187,7 +186,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         # Adjacent matrix: OD
         self.adj_mx_od = torch.FloatTensor(self.data_feature.get('adj_mx', None))
 
-        # Adjacent matrix: semantic similarity
+        # Adjacent matrix: Semantic similarity
         static = data_feature.get('static', None)
         static_euc = cdist(static, static, metric='euclidean')
         static_euc[static_euc == 0] = 1
@@ -287,11 +286,11 @@ class MultiATGCN(AbstractTrafficStateModel):
                 nn.init.uniform_(p)
 
     def forward(self, batch):
-        # Source: get all features except time index
+        # all features except time index
         source = torch.cat((batch['X'][:, :, :, self.start_dim:self.end_dim],
                             batch['X'][:, :, :, -self.ext_dim + self.time_index_dim:]), dim=-1)
 
-        # Merge three temporal unit: end_dim-start_dim + future_unknown (weather) + future_known (holiday/weekend) = 8
+        # three temporal unit: end_dim-start_dim + future_unknown (weather) + future_known (holiday/weekend) = 8
         output = 0.0
         if self.len_closeness > 0:
             begin_index = 0
@@ -314,7 +313,7 @@ class MultiATGCN(AbstractTrafficStateModel):
             time_in_day = batch['X'][:, begin_index:end_index, :, self.end_dim:self.end_dim + 1]
             output = torch.cat((output, time_in_day), dim=-1)
 
-        # Add future-known variables: holidays and weekends # 2
+        # future-known variables: holidays and weekends # 2
         if self.output_window == self.input_window:
             fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
             output = torch.cat((output, fknown_var), dim=-1)
@@ -331,7 +330,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         output, output_hidden = self.encoder(output, init_state, self.node_emb, self.node_vec1, self.node_vec2,
                                              self.supports)
 
-        # CNN based output
+        # CNN-based output
         output = F.dropout(output, p=0.1, training=self.training)
         output = self.end_conv(output)  # B, T*C, N, 1
         output = output.squeeze(-1).reshape(-1, self.output_window, self.output_dim, self.num_nodes).permute(0, 1, 3, 2)

@@ -1,10 +1,9 @@
 ####################################
-# Merge all population inflow and output to lib-city format.
+# Convert all population inflow and output to lib-city format.
 # W/O Group-based standardized
-# Different spatial unit
 # W/O POI types
+# Different spatial units: county subdivision, census track, census block group
 ####################################
-
 import pandas as pd
 import numpy as np
 import datetime
@@ -17,17 +16,17 @@ import geopandas as gpd
 pd.options.mode.chained_assignment = None
 results_path = r'D:\\ST_Graph\\Data\\'
 geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
-t_s = datetime.datetime(2020, 1, 1)  # datetime.datetime(2019, 3, 1)  # datetime.datetime(2019, 1, 1)
-t_e = datetime.datetime(2020, 4, 1)  # datetime.datetime(2019, 7, 1)  # datetime.datetime(2020, 3, 1)
+t_s = datetime.datetime(2019, 1, 1)
+t_e = datetime.datetime(2019, 4, 1)
 t_days = (t_e - t_s).days
 train_ratio = 0.7
 split_time = t_s + datetime.timedelta(days=int(((t_e - t_s).total_seconds() / (24 * 3600)) * train_ratio))
 print(split_time)
 POI_Type = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']
 # CTS_Info = pd.read_pickle(r'D:\ST_Graph\Results\CTS_Info.pkl')
-# CTS_Info.plot()
 # CTS_Info = CTS_Info[CTS_Info['CTFIPS'].isin(['24510', '24005', '24027', '24003'])]
-is_cov = 'COVID01010401'
+# CTS_Info.plot()
+is_cov = '201901010401'
 for sunit in ['CTSFIPS', 'CTractFIPS', 'CBGFIPS']:
     f_na, f_nas, f_gp, f_gps = '%s_SG_%s_Hourly' % (is_cov, sunit), '%s_SG_%s_Hourly_Single' % (
         is_cov, sunit), '%s_SG_%s_Hourly_GP' % (is_cov, sunit), '%s_SG_%s_Hourly_Single_GP' % (is_cov, sunit)
@@ -49,24 +48,22 @@ for sunit in ['CTSFIPS', 'CTractFIPS', 'CBGFIPS']:
     # Drop those without fully days
     n_days = CTS_Hourly.groupby([sunit])['Time'].count().reset_index()
     n_cts = list(n_days.loc[n_days['Time'] != n_days['Time'].median(), sunit])
-    # Drop those small zones
+    # Drop those zones with small population inflow
     CTS_Hourly['All'] = CTS_Hourly[POI_Type].sum(axis=1)
     n_flow = CTS_Hourly.groupby([sunit])['All'].sum().reset_index()
     n_cts = n_cts + list(n_flow.loc[n_flow['All'] <= t_days * 10, sunit])
     CTS_Hourly = CTS_Hourly[~CTS_Hourly[sunit].isin(n_cts)].reset_index(drop=True)
     print("No of removed unit: %s" % len(n_cts))
 
-    # CTS_Hourly.groupby(['Time']).sum().plot()
+    # add holiday/weekend
     holidays = calendar().holidays(start=CTS_Hourly['Time'].dt.date.min(), end=CTS_Hourly['Time'].dt.date.max())
     CTS_Hourly['Holiday'] = CTS_Hourly['Time'].dt.date.astype('datetime64').isin(holidays).astype(int)
     CTS_Hourly['dayofweek'] = CTS_Hourly['Time'].dt.dayofweek
     CTS_Hourly['Weekend'] = CTS_Hourly['dayofweek'].isin([5, 6]).astype(int)
     CTS_Hourly = CTS_Hourly.sort_values(by=[sunit, 'Time']).reset_index(drop=True).reset_index()
-
     CTS_Hourly_train = CTS_Hourly[CTS_Hourly['Time'] <= split_time].reset_index(drop=True)
     CTS_Hourly['Time'] = CTS_Hourly['Time'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
     CTS_Hourly['type'] = 'state'
-    # print(CTS_Hourly.isnull().sum())
     print('Len of %s : %s' % (sunit, len(set(CTS_Hourly[sunit]))))
 
     # Output: without normalize
@@ -89,11 +86,12 @@ for sunit in ['CTSFIPS', 'CTractFIPS', 'CBGFIPS']:
     ct_visit_mstd.to_pickle(r'D:\ST_Graph\Results\%s_visit_mstd.pkl' % sunit)
     CTS_Hourly = CTS_Hourly.merge(ct_visit_mstd, on=sunit)
     # for kk in POI_Type + ['All']: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly[kk + '_std']
-    # For comparison, do not normalize by POI type
     for kk in POI_Type: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly['All_std']
     CTS_Hourly['All'] = (CTS_Hourly['All'] - CTS_Hourly['All' + '_m']) / CTS_Hourly['All_std']
     print((CTS_Hourly['All'] - CTS_Hourly[POI_Type].sum(axis=1)).sum())
     CTS_Hourly = CTS_Hourly.fillna(0)
+
+    # Output: with normalize
     Dyna_gp = CTS_Hourly[['index', 'type', 'Time', sunit] + POI_Type]
     Dyna_gp.columns = ['dyna_id', 'type', 'time', 'entity_id'] + POI_Type
     print(Dyna_gp.isnull().sum())
@@ -103,10 +101,7 @@ for sunit in ['CTSFIPS', 'CTractFIPS', 'CBGFIPS']:
     Dyna_gps[['dyna_id', 'type', 'time', 'entity_id', 'Visits']].to_csv(
         results_path + r'Lib_Data\%s\%s.dyna' % (f_gps, f_gps), index=0)
 
-    # Geo: lat/lng not always needed
-    # CTS_Info['x'] = CTS_Info.centroid.x
-    # CTS_Info['y'] = CTS_Info.centroid.y
-    # CTS_Info['coordinates'] = "[" + CTS_Info['x'].astype(str) + ', ' + CTS_Info['y'].astype(str) + "]"
+    # Geo
     Geo_Info = CTS_Hourly.drop_duplicates(subset=sunit).reset_index(drop=True)
     Geo_Info = Geo_Info[[sunit]]
     # Add lat/lng
@@ -140,11 +135,8 @@ for sunit in ['CTSFIPS', 'CTractFIPS', 'CBGFIPS']:
     CTS_OD = CTS_OD.merge(CTS_D, on=sunit + '_D')
     CTS_OD['link_weight'] = CTS_OD['Volume'] / CTS_OD['Inflow']
     list_s = list(set(Geo_Info['geo_id']))
+    # Only need those units within geo files
     CTS_OD_f = pd.DataFrame({sunit + '_O': list_s * len(list_s), sunit + '_D': np.repeat(list_s, len(list_s))})
-    # CTS_OD_W = CTS_OD.pivot(index=sunit + '_O', columns=sunit + '_D', values='link_weight')
-    # CTS_OD_W = CTS_OD_W.fillna(0).reset_index()
-    # # sns.heatmap(CTS_OD_W.iloc[:, 1:].values)
-    # CTS_OD = pd.melt(CTS_OD_W, id_vars=sunit + '_O', value_vars=list(CTS_OD_W.columns)[1:]).reset_index()
     CTS_OD = CTS_OD.merge(CTS_OD_f, on=[sunit + '_O', sunit + '_D'], how='right')
     CTS_OD = CTS_OD.fillna(0).reset_index()
     CTS_OD['type'] = 'geo'
@@ -155,27 +147,26 @@ for sunit in ['CTSFIPS', 'CTractFIPS', 'CBGFIPS']:
     CTS_OD.rename({'index': 'rel_id'}, axis=1, inplace=True)
     for kk in f_list: CTS_OD.to_csv(results_path + r'Lib_Data\%s\%s.rel' % (kk, kk), index=0)
 
-    # Ext: add holiday and weekend
+    # Ext: holiday and weekend
     CTS_Hourly_ext = CTS_Hourly[['Time', 'Holiday', 'Weekend']]
     CTS_Hourly_ext = CTS_Hourly_ext.drop_duplicates().reset_index(drop=True).reset_index()
     CTS_Hourly_ext.columns = ['ext_id', 'time', 'holiday', 'weekend']
-    # Ext: add weather
+    # Ext: weather
     weather = pd.read_pickle(r'D:\ST_Graph\Results\weather_2019_bmc.pkl')
     weather['time'] = weather['DATE'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
     wlist = ['wind', 'temp', 'rain', 'snow', 'vis']
     weather[wlist] = (weather[wlist] - weather[wlist].mean()) / weather[wlist].std()
     CTS_Hourly_ext = CTS_Hourly_ext.merge(weather[wlist + ['time']], on=['time'])
     for kk in f_list: CTS_Hourly_ext.to_csv(results_path + r'Lib_Data\%s\%s.ext' % (kk, kk), index=0)
-    # Static
+    # Ext: static
     statics = pd.read_csv(r'D:\ST_Graph\Results\%s_Hourly_GP.static' % sunit)
     statics['geo_id'] = statics['geo_id'].astype(str)
-    # statics = statics[~statics['geo_id'].isin(n_cts)].reset_index(drop=True)
     statics = statics.merge(Geo_Info[['geo_id']], on='geo_id', how='right')
     statics = statics.fillna(statics.mean())
     print(statics.shape)
     for kk in f_list: statics.to_csv(results_path + r'Lib_Data\%s\%s.static' % (kk, kk), index=0)
 
-    # Configure: multi-POI
+    # Configure
     # with _GP: it is normalized by groups
     # with _Single: it only covers all volume (without POI types)
     config = dict()

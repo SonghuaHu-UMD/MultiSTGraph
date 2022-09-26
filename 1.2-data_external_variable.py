@@ -1,7 +1,6 @@
 ####################################
-# Build external information: weather, holiday, static variables
+# Prepare external information: weather, holiday, static variables
 ####################################
-
 import pandas as pd
 import numpy as np
 import os

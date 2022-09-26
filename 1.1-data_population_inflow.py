@@ -1,7 +1,6 @@
 ####################################
-# Prepare population inflow data in BMC area from SafeGraph.
-# Split the inflow by POI type.
-# Prepare OD flow data for graph construction.
+# Prepare population inflow in baltimore area from SafeGraph.
+# Prepare OD flow for graph construction.
 ####################################
 import pandas as pd
 import matplotlib.pyplot as plt

@@ -2,18 +2,20 @@ import argparse
 from libcity.pipeline import run_model
 from libcity.utils import str2bool, add_general_args
 
-# "GRU", 'LSTM', 'RNN', 'Seq2Seq', 'FNN', 'AGCRN', 'MTGNN', 'STSGCN', 'STAGGCN', 'ASTGCN', 'STTN', 'STGCN', 'GWNET','TGCN','TGCLSTM','STG2Seq', 'GMAN', 'DCRNN'
-# MultiATGCN AGCRN SG_CTS_Hourly_Single_GP SG_CTS_Hourly_GP SG_CBGFIPS_Hourly_Single_GP SG_CTSFIPS_Hourly_Single_GP SG_CTractFIPS_Hourly_Single_GP
+# Baselines: "GRU", 'LSTM', 'RNN', 'Seq2Seq', 'FNN', 'AGCRN', 'MTGNN', 'STSGCN', 'STAGGCN', 'ASTGCN', 'STTN', 'STGCN', 'GWNET','TGCN','TGCLSTM','STG2Seq', 'GMAN', 'DCRNN'
+# Our model: MultiATGCN
+# Dataset: COVID01010401_SG_CTractFIPS_Hourly_Single_GP SG_CTractFIPS_Hourly_Single_GP
+# ['multi', 'bidirection'], ['multi', 'unidirection'], ['multi', 'none']
 model_list = ['MultiATGCN']
-graph_list = [['multi', 'bidirection'], ['multi', 'unidirection'], ['multi', 'none'], ['od', 'bidirection'],
-              ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'], ['identity', 'none']]
+graph_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
+              ['identity', 'none']]
 if __name__ == '__main__':
     for model_name in model_list:
         for graph in graph_list:
             parser = argparse.ArgumentParser()
             parser.add_argument('--task', type=str, default='traffic_state_pred', help='the name of task')
             parser.add_argument('--model', type=str, default=model_name, help='the name of model')
-            parser.add_argument('--dataset', type=str, default='COVID01010401_SG_CTractFIPS_Hourly_Single_GP',
+            parser.add_argument('--dataset', type=str, default='SG_CTractFIPS_Hourly_Single_GP',
                                 help='the name of dataset')
             parser.add_argument('--config_file', type=str, default='config_user', help='the file name of config file')
             parser.add_argument('--saved_model', type=str2bool, default=True, help='whether save the trained model')
