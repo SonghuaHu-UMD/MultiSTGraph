@@ -6,7 +6,7 @@
   "bidir_adj_mx": true,
   "scaler": "standard",
   "load_external": true,
-  "batch_size": 32,
+  "batch_size": 16,
   "normal_external": false,
   "ext_scaler": "none",
   "add_time_in_day": true,

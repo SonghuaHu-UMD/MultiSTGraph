@@ -8,7 +8,7 @@ from libcity.model import loss
 from sklearn.metrics import r2_score, explained_variance_score
 
 pd.options.mode.chained_assignment = None
-results_path = r'D:\ST_Graph\Results\\'
+results_path = r'D:\ST_Graph\results_record\\'
 
 plt.rcParams.update(
     {'font.size': 13, 'font.family': "serif", 'mathtext.fontset': 'dejavuserif', 'xtick.direction': 'in',
@@ -19,15 +19,16 @@ plt.rcParams.update(
      'lines.linewidth': 1.5, 'legend.frameon': False, 'savefig.bbox': 'tight', 'savefig.pad_inches': 0.05})
 
 # Read metrics of multiple models
-filenames = glob.glob(results_path + r"gp_single_weather\*")
-filenames = [ec for ec in filenames if 'dataset_cache' not in ec]
+filenames = glob.glob(results_path + r"24 steps\202001010601_BM\*")
+filenames = [ec for ec in filenames if 'log' not in ec]
 all_results = pd.DataFrame()
 for ec in filenames:
     nec = glob.glob(ec + '\\evaluate_cache\\*.csv')
+    model_name = glob.glob(ec + '\\model_cache\\*.m')
     if len(nec) > 0:
         nec = nec[0]
         fec = pd.read_csv(nec)
-        fec['Model_name'] = nec.split('_')[-6]
+        fec['Model_name'] = model_name[0].split('\\')[-1].split('_')[0]
         all_results = all_results.append(fec)
 all_results = all_results.reset_index()
 all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
@@ -39,8 +40,6 @@ ct_visit_mstd = pd.read_pickle(r'D:\ST_Graph\Results\cts_visit_mstd.pkl')
 ct_visit_mstd = ct_visit_mstd.sort_values(by='CTSFIPS').reset_index(drop=True)
 
 # Read prediction result
-filenames = glob.glob(results_path + r"gp_single\*")
-filenames = [ec for ec in filenames if 'dataset_cache' not in ec]
 m_m = []
 for kk in filenames:
     print(kk)
@@ -95,4 +94,3 @@ for ec in filenames:
 all_results = all_results.reset_index()
 all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
 all_results_avg['MAE'].sum()
-

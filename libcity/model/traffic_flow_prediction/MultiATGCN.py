@@ -247,14 +247,14 @@ class MultiATGCN(AbstractTrafficStateModel):
             self.node_vec1 = nn.Parameter(torch.randn(self.num_nodes, self.embed_dim), requires_grad=True)
             self.node_vec2 = nn.Parameter(torch.randn(self.embed_dim, self.num_nodes), requires_grad=True)
 
-        # Dim of different variables: Y; time_in_day 1 ; day_in_week 7 ; external: future known 2; future unknown 5
+        # Dim of different variables: Y; time_in_day 1 ; external: future known 2; future unknown 5
         self.start_dim = config.get('start_dim', 0)
         self.end_dim = config.get('end_dim', 1)
+        self.time_index_dim = 1 if self.add_time_in_day else 0
         self.ext_dim = self.data_feature.get('ext_dim', 1)  # all except end_dim-start_dim
         self.output_dim = self.end_dim - self.start_dim
-        self.future_unknown = config.get('future_unknown', 5)  # weather
         self.future_known = config.get('future_known', 2)  # holiday, weekend
-        self.time_index_dim = 1 if self.add_time_in_day else 0
+        self.future_unknown = self.ext_dim - self.time_index_dim - self.future_known  # weather
         self.feature_raw = self.end_dim - self.start_dim + self.future_unknown + self.future_known
         self.feature_final = self.feature_raw + self.time_index_dim + self.future_known
         self.hidden_dim = config.get('rnn_units', 64)

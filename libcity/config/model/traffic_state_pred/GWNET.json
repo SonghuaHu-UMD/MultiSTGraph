@@ -3,6 +3,7 @@
   "blocks": 4,
   "layers": 2,
   "gcn_bool": true,
+  "apt_layer": true,
   "addaptadj": true,
   "adjtype": "doubletransition",
   "bidir_adj_mx": false,
