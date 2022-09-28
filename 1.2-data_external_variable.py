@@ -1,6 +1,7 @@
-####################################
-# Prepare external information: weather, holiday, static variables
-####################################
+########################################################################
+# Prepare external information: weather, holiday,
+# Static variables (POI types, socio-economics, demographics, etc)
+########################################################################
 import pandas as pd
 import numpy as np
 import os

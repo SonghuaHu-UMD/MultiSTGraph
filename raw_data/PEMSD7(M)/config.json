@@ -1,0 +1,42 @@
+{
+  "geo": {
+    "including_types": [
+      "Point"
+    ],
+    "Point": {}
+  },
+  "rel": {
+    "including_types": [
+      "geo"
+    ],
+    "geo": {
+      "weight": "num"
+    }
+  },
+  "dyna": {
+    "including_types": [
+      "state"
+    ],
+    "state": {
+      "entity_id": "geo_id",
+      "traffic_speed": "num"
+    }
+  },
+  "info": {
+    "data_col": [
+      "traffic_speed"
+    ],
+    "weight_col": "weight",
+    "data_files": [
+      "PEMSD7(M)"
+    ],
+    "geo_file": "PEMSD7(M)",
+    "rel_file": "PEMSD7(M)",
+    "output_dim": 1,
+    "time_intervals": 300,
+    "init_weight_inf_or_zero": "inf",
+    "set_weight_link_or_dist": "dist",
+    "calculate_weight_adj": true,
+    "weight_adj_epsilon": 0.1
+  }
+}

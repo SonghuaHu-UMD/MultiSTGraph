@@ -2,9 +2,7 @@ import argparse
 from libcity.pipeline import run_model
 from libcity.utils import str2bool, add_general_args
 
-# Baselines: "GRU", 'LSTM', 'RNN', 'Seq2Seq', 'FNN', 'AGCRN', 'MTGNN', 'STSGCN', 'STAGGCN', 'ASTGCN', 'STTN', 'STGCN', 'GWNET','TGCN','TGCLSTM','STG2Seq', 'GMAN', 'DCRNN'
-# Our model: MultiATGCN
-# Dataset: COVID01010401_SG_CTractFIPS_Hourly_Single_GP SG_CTractFIPS_Hourly_Single_GP
+
 # ['multi', 'bidirection'], ['multi', 'unidirection'], ['multi', 'none']
 model_list = ['MultiATGCN']
 graph_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],

@@ -1,8 +1,10 @@
 ####################################
-# Convert all population inflow and output to lib-city format.
+# Convert all dataset to lib-city format: https://github.com/LibCity/Bigscity-LibCity
 # W/O Group-based standardized
 # W/O POI types
 # Different spatial units: county subdivision, census track, census block group
+# Different spatial coverage: BM/DC
+# Different temporal coverage: 20190101-0601, 20200101-0601
 ####################################
 import pandas as pd
 import numpy as np
@@ -34,7 +36,7 @@ if 'BM' in time_sp:
 elif 'DC' in time_sp:
     ct_list = ['11001', '51013']
     n_cts = ['11001009802']
-for sunit in ['CTractFIPS']:
+for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     f_na, f_nas, f_gp, f_gps = '%s_SG_%s_Hourly' % (time_sp, sunit), '%s_SG_%s_Hourly_Single' % (
         time_sp, sunit), '%s_SG_%s_Hourly_GP' % (time_sp, sunit), '%s_SG_%s_Hourly_Single_GP' % (time_sp, sunit)
     f_list = [f_na, f_nas, f_gp, f_gps]
@@ -51,12 +53,12 @@ for sunit in ['CTractFIPS']:
     CTS_Hourly['CTFIPS'] = CTS_Hourly[sunit].str[0:5]
     CTS_Hourly = CTS_Hourly[CTS_Hourly['CTFIPS'].isin(ct_list)].reset_index(drop=True)
     # CTS_Hourly[1:].groupby('Time').sum().plot()
+    CTS_Hourly['All'] = CTS_Hourly[POI_Type].sum(axis=1)
 
     # # Drop those without fully days
     # n_days = CTS_Hourly.groupby([sunit])['Time'].count().reset_index()
     # n_cts = list(n_days.loc[n_days['Time'] != n_days['Time'].median(), sunit])
     # # Drop those zones with small population inflow
-    CTS_Hourly['All'] = CTS_Hourly[POI_Type].sum(axis=1)
     # n_flow = CTS_Hourly.groupby([sunit])['All'].sum().reset_index()
     # n_cts = n_cts + list(n_flow.loc[n_flow['All'] <= t_days * 10, sunit])
     # print(n_cts)
