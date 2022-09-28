@@ -374,7 +374,7 @@ class STSGCN(AbstractTrafficStateModel):
         # print('y_predicted', y_predicted.shape)
         y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
         y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-        return loss.huber_loss(y_predicted, y_true)  # masked_mae_torch
+        return loss.masked_mae_torch(y_predicted, y_true)  # masked_mae_torch
 
     def predict(self, batch):
         return self.forward(batch)
