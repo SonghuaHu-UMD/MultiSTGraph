@@ -6,7 +6,7 @@
   "num_rnn_layers": 2,
   "rnn_units": 64,
   "use_curriculum_learning": true,
-  "batch_size": 16,
+  "batch_size": 32,
 
   "scaler": "standard",
   "load_external": true,

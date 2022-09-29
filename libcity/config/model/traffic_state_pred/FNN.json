@@ -7,6 +7,7 @@
   "ext_scaler": "none",
   "add_time_in_day": false,
   "add_day_in_week": false,
+  "batch_size": 16,
 
   "max_epoch": 100,
   "learner": "adam",

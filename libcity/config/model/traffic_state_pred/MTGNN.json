@@ -19,6 +19,7 @@
   "task_level": 0,
   "num_split": 1,
   "step_size2": 100,
+  "batch_size": 16,
 
   "scaler": "standard",
   "load_external": true,

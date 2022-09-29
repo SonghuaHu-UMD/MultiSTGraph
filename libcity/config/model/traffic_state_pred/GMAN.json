@@ -2,7 +2,7 @@
   "L": 2,
   "K": 2,
 
-  "batch_size": 32,
+  "batch_size": 8,
   "scaler": "standard",
   "load_external": true,
   "add_time_in_day": true,

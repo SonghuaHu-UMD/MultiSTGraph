@@ -3,7 +3,7 @@
   "lambda": 0.0015,
   "bidir_adj_mx": true,
   "scaler": "standard",
-  "batch_size": 32,
+  "batch_size": 16,
   "load_external": false,
   "normal_external": false,
   "ext_scaler": "none",

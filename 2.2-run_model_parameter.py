@@ -4,11 +4,10 @@ from libcity.utils import str2bool, add_general_args
 
 # ['multi', 'bidirection'], ['multi', 'unidirection'], ['multi', 'none']
 model_list = ['MultiATGCN']
-graph_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
-              ['identity', 'none']]
+para_list = [5, 10, 20, 30, 40, 50]
 if __name__ == '__main__':
     for model_name in model_list:
-        for graph in graph_list:
+        for para in para_list:
             for random_seed in [0, 10, 100, 500, 5000]:
                 parser = argparse.ArgumentParser()
                 parser.add_argument('--task', type=str, default='traffic_state_pred', help='the name of task')
@@ -24,8 +23,7 @@ if __name__ == '__main__':
                 parser.add_argument('--seed', type=int, default=random_seed, help='random seed')
                 parser.add_argument('--start_dim', type=int, default=0, help='start_dim')
                 parser.add_argument('--end_dim', type=int, default=1, help='end_dim')
-                parser.add_argument('--adjtype', type=str, default=graph[0], help='adjtype')
-                parser.add_argument('--adpadj', type=str, default=graph[1], help='adpadj')
+                parser.add_argument('--embed_dim', type=int, default=para, help='adjtype')
                 add_general_args(parser)
                 # args = parser.parse_args()
                 args, unknown = parser.parse_known_args()
@@ -33,5 +31,5 @@ if __name__ == '__main__':
                 other_args = {key: val for key, val in dict_args.items() if key not in
                               ['task', 'model', 'dataset', 'config_file', 'saved_model', 'train'] and val is not None}
                 run_model(task=args.task, model_name=args.model, dataset_name=args.dataset,
-                          config_file=args.config_file,
-                          saved_model=args.saved_model, train=args.train, other_args=other_args)
+                          config_file=args.config_file, saved_model=args.saved_model, train=args.train,
+                          other_args=other_args)

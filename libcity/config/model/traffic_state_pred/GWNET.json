@@ -15,6 +15,7 @@
   "dilation_channels": 32,
   "skip_channels": 256,
   "end_channels": 512,
+  "batch_size": 16,
 
   "scaler": "standard",
   "load_external": false,

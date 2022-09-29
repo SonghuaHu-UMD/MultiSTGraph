@@ -3,8 +3,9 @@ from libcity.pipeline import run_model
 from libcity.utils import str2bool, add_general_args
 
 # Dataset: COVID01010401_SG_CTractFIPS_Hourly_Single_GP SG_CTractFIPS_Hourly_Single_GP
-# 'MultiATGCN', 'ASTGCN', 'STTN',  'GWNET', 'AGCRN', 'MTGNN',"GRU", 'LSTM', 'RNN', 'Seq2Seq', 'FNN', 'STSGCN', 'TGCN', 'DCRNN', 'STGCN','GMAN'
-model_list = ['STGCN', 'GMAN']
+# 'MultiATGCN', 'ASTGCN', 'STSGCN', 'STGCN', 'GMAN', 'MTGNN', 'STTN', 'GWNET', 'AGCRN', "GRU", 'LSTM',
+# 'RNN', 'Seq2Seq', 'FNN', 'TGCN', 'DCRNN'
+model_list = ['STTN']
 if __name__ == '__main__':
     for model_name in model_list:
         parser = argparse.ArgumentParser()
