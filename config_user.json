@@ -12,7 +12,7 @@
   "interval_trend": 28,
   "len_closeness": 1,
   "len_period": 3,
-  "len_trend": 2,
+  "len_trend": 1,
   "use_early_stop": true,
   "patience": 6
 }

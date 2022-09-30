@@ -37,35 +37,34 @@ def get_gp_data(filenames):
 
 
 def transfer_gp_data(filenames, ct_visit_mstd):
-    # Read prediction result
     m_m = []
     for kk in filenames:
         print(kk)
         filename = glob.glob(kk + r"\\evaluate_cache\*.npz")
         model_name = glob.glob(kk + '\\model_cache\\*.m')
+        model_name = model_name[0].split('\\')[-1].split('_')[0]
+        print(model_name)
         if len(filename) > 0:
             Predict_R = np.load(filename[0])
             sh = Predict_R['prediction'].shape
+            print(sh)  # no of batches, output_window, no of nodes, output dim
             ct_ma = np.tile(ct_visit_mstd[['All_m']].values, (sh[0], sh[1], 1, sh[3]))
             ct_sa = np.tile(ct_visit_mstd[['All_std']].values, (sh[0], sh[1], 1, sh[3]))
             ct_id = np.tile(ct_visit_mstd[[sunit]].values, (sh[0], sh[1], 1, sh[3]))
             ahead_step = np.tile(np.expand_dims(np.array(range(0, sh[1])), axis=(1, 2)), (sh[0], 1, sh[2], sh[3]))
-            Predict_Real = pd.DataFrame(
-                {'prediction': Predict_R['prediction'].flatten(), 'truth': Predict_R['truth'].flatten(),
-                 'All_m': ct_ma.flatten(), 'All_std': ct_sa.flatten(), sunit: ct_id.flatten(),
-                 'ahead_step': ahead_step.flatten()})
-            Predict_Real['prediction_t'] = Predict_Real['prediction'] * Predict_Real['All_std'] + Predict_Real['All_m']
-            Predict_Real['truth_t'] = Predict_Real['truth'] * Predict_Real['All_std'] + Predict_Real['All_m']
-            Predict_Real.loc[Predict_Real['prediction_t'] < 0, 'prediction_t'] = 0
-            # Predict_Real.loc[Predict_Real['truth_t'] < 10, 'prediction_t'] = np.nan  # not consider small volume
+            P_R = pd.DataFrame({'prediction': Predict_R['prediction'].flatten(), 'truth': Predict_R['truth'].flatten(),
+                                'All_m': ct_ma.flatten(), 'All_std': ct_sa.flatten(), sunit: ct_id.flatten(),
+                                'ahead_step': ahead_step.flatten()})
+            P_R['prediction_t'] = P_R['prediction'] * P_R['All_std'] + P_R['All_m']
+            P_R['truth_t'] = P_R['truth'] * P_R['All_std'] + P_R['All_m']
+            P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
+            s_small = 10  # not consider small volume
             for rr in range(0, sh[1]):
-                pr = Predict_Real.loc[
-                    (Predict_Real['ahead_step'] == rr) & (Predict_Real['truth_t'] > 10), 'prediction_t']
-                tr = Predict_Real.loc[(Predict_Real['ahead_step'] == rr) & (Predict_Real['truth_t'] > 10), 'truth_t']
-                m_m.append([model_name[0].split('\\')[-1].split('_')[0], rr,
-                            datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])), loss.masked_mae_np(pr, tr),
-                            loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr), r2_score(pr, tr),
-                            explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+                pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
+                tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
+                m_m.append([model_name, rr, datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])),
+                            loss.masked_mae_np(pr, tr), loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr),
+                            r2_score(pr, tr), explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
         else:
             print(kk + '----NULL----')
     return m_m
@@ -73,7 +72,7 @@ def transfer_gp_data(filenames, ct_visit_mstd):
 
 # Read metrics of multiple models
 # ['201901010601_DC', '202001010601_DC', '201901010601_BM', '202001010601_BM']
-time_sps = ['201901010601_DC']
+time_sps = ['201901010601_DC', '202001010601_DC']
 n_steps = 24
 for time_sp in time_sps:
     # time_sp = '202001010601_DC'
@@ -94,12 +93,8 @@ for time_sp in time_sps:
 
 # Read metrics of multiple parameters
 time_sps = ['202001010601_DC']
-# para_list = ['od-bidirection', 'od-unidirection', 'od', 'dist', 'cosine', 'identity']
-# n_repeat = 5
-# para_name = 'Graphs'
-para_list = [5, 10, 20, 30, 40, 50]
-n_repeat = 3
-para_name = 'node_ebed'
+# para_list,n_repeat,para_name = ['od-bidirection', 'od-unidirection', 'od', 'dist', 'cosine', 'identity'],5, 'Graphs'
+para_list, n_repeat, para_name = [5, 10, 20, 30, 40, 50], 3, 'node_ebed'
 for time_sp in time_sps:
     # time_sp = '202001010601_DC'
     sunit = 'CTractFIPS'

@@ -3,6 +3,7 @@
   "rnn_units": 64,
   "num_layers": 2,
   "cheb_order": 3,
+  "use_3tu": true,
   "bidir_adj_mx": false,
   "future_known": 2,
   "batch_size": 16,

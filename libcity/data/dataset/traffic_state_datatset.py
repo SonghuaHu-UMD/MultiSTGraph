@@ -36,6 +36,7 @@ class TrafficStateDataset(AbstractDataset):
         self.add_day_in_week = self.config.get('add_day_in_week', False)
         self.input_window = self.config.get('input_window', 12)
         self.output_window = self.config.get('output_window', 12)
+        self.use_3tu = self.config.get('use_3tu', False)
         self.parameters_str = \
             str(self.dataset) + '_' + str(self.input_window) + '_' + str(self.output_window) + '_' \
             + str(self.train_rate) + '_' + str(self.eval_rate) + '_' + str(self.scaler_type) + '_' \
@@ -942,6 +943,9 @@ class TrafficStateDataset(AbstractDataset):
                 x_train, y_train, x_val, y_val, x_test, y_test = self._load_cache_train_val_test()
             else:
                 x_train, y_train, x_val, y_val, x_test, y_test = self._generate_train_val_test()
+        # Keep three units only for those needs
+        if not self.use_3tu:
+            x_train, x_val, x_test = x_train[:, 0:24, :, :], x_val[:, 0:24, :, :], x_test[:, 0:24, :, :]
         # 数据归一化
         self.feature_dim = x_train.shape[-1]
         self.ext_dim = self.feature_dim - self.output_dim

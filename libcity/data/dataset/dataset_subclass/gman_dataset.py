@@ -6,7 +6,7 @@ import numpy as np
 from gensim.models import Word2Vec
 
 from libcity.data.dataset import TrafficStatePointDataset
-
+from libcity.data.dataset.dataset_subclass.mth_dataset import MTHDataset
 
 class Graph():
     def __init__(self, nx_G, is_directed, p, q):
@@ -163,7 +163,7 @@ def learn_embeddings(walks, dimensions, window_size, iter):
     return model
 
 
-class GMANDataset(TrafficStatePointDataset):
+class GMANDataset(MTHDataset):
 
     def __init__(self, config):
         super().__init__(config)
