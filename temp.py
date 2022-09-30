@@ -106,3 +106,12 @@ for ec in filenames:
 all_results = all_results.reset_index()
 all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
 all_results_avg['MAE'].sum()
+
+# Plot a county
+fig, ax = plt.subplots(figsize=(12, 6))
+for kk in list(ct_visit_mstd[sunit])[0:1]:
+    temp = Predict_Real[(Predict_Real[sunit] == kk) & (Predict_Real['ahead_step'] == 0)]
+    ax.plot(temp['prediction_t'], label='prediction')
+    ax.plot(temp['truth_t'], label='truth')
+plt.legend()
+plt.tight_layout()

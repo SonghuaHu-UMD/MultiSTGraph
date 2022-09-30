@@ -263,9 +263,9 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.len_period = self.data_feature.get('len_period', 0)
         self.len_trend = self.data_feature.get('len_trend', 0)
         self.len_closeness = self.data_feature.get('len_closeness', 0)
-        self.len_ts = int((self.len_period + self.len_trend + self.len_closeness) / 24)
-        self.weight_ts = nn.ParameterList(
-            [nn.Parameter(torch.FloatTensor(1, 24, 1, self.feature_raw)) for i in range(self.len_ts)])
+        self.weight_t1 = nn.Parameter(torch.FloatTensor(1, self.len_closeness, 1, self.feature_raw))
+        self.weight_t2 = nn.Parameter(torch.FloatTensor(1, self.len_period, 1, self.feature_raw))
+        self.weight_t3 = nn.Parameter(torch.FloatTensor(1, self.len_trend, 1, self.feature_raw))
 
         # Layers
         self.static_fc = nn.Sequential(
@@ -292,33 +292,24 @@ class MultiATGCN(AbstractTrafficStateModel):
 
         # three temporal unit: end_dim-start_dim + future_unknown (weather) + future_known (holiday/weekend) = 8
         output = 0.0
-        ccount = 0
         if self.len_closeness > 0:
             begin_index = 0
-            for kk in range(0, int(self.len_closeness / 24)):
-                end_index = begin_index + 24
-                output_hours = source[:, begin_index:end_index, :, :]
-                begin_index = end_index
-                output += output_hours * self.weight_ts[ccount]  # element-wise weight
-                ccount += 1
+            end_index = begin_index + self.len_closeness
+            output_hours = source[:, begin_index:end_index, :, :]
+            output += output_hours * self.weight_t1  # element-wise weight
         if self.len_period > 0:
             begin_index = self.len_closeness
-            for kk in range(0, int(self.len_period / 24)):
-                end_index = begin_index + 24
-                output_days = source[:, begin_index:end_index, :, :]
-                begin_index = end_index
-                output += output_days * self.weight_ts[ccount]
-                ccount += 1
+            end_index = begin_index + self.len_period
+            output_days = source[:, begin_index:end_index, :, :]
+            output += output_days * self.weight_t2
         if self.len_trend > 0:
             begin_index = self.len_closeness + self.len_period
-            for kk in range(0, int(self.len_trend / 24)):
-                end_index = begin_index + 24
-                output_weeks = source[:, begin_index:end_index, :, :]
-                output += output_weeks * self.weight_ts[ccount]
-                ccount += 1
+            end_index = begin_index + self.len_trend
+            output_weeks = source[:, begin_index:end_index, :, :]
+            output += output_weeks * self.weight_t3
         if self.add_time_in_day:  # add back the time_index now: 1
             begin_index = 0
-            end_index = begin_index + 24
+            end_index = begin_index + self.len_closeness
             time_in_day = batch['X'][:, begin_index:end_index, :, self.end_dim:self.end_dim + 1]
             output = torch.cat((output, time_in_day), dim=-1)
 

@@ -5,10 +5,12 @@ from libcity.utils import str2bool, add_general_args
 # ['multi', 'bidirection'], ['multi', 'unidirection'], ['multi', 'none']
 model_list = ['MultiATGCN']
 para_list = [5, 10, 20, 30, 40, 50]
+# para_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
+#              ['identity', 'none']]
 if __name__ == '__main__':
     for model_name in model_list:
         for para in para_list:
-            for random_seed in [0, 10, 100, 500, 5000]:
+            for random_seed in [0, 10, 100]:
                 parser = argparse.ArgumentParser()
                 parser.add_argument('--task', type=str, default='traffic_state_pred', help='the name of task')
                 parser.add_argument('--model', type=str, default=model_name, help='the name of model')

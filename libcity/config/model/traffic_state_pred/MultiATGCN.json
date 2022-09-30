@@ -1,5 +1,5 @@
 {
-  "embed_dim": 30,
+  "embed_dim": 20,
   "rnn_units": 64,
   "num_layers": 2,
   "cheb_order": 3,
