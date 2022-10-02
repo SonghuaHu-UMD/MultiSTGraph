@@ -9,6 +9,7 @@
 import pandas as pd
 import numpy as np
 import datetime
+import matplotlib.pyplot as plt
 import glob
 from pandas.tseries.holiday import USFederalHolidayCalendar as calendar
 import json
@@ -65,6 +66,13 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     CTS_Hourly = CTS_Hourly[~CTS_Hourly[sunit].isin(n_cts)].reset_index(drop=True)
     print("No of removed unit: %s" % len(n_cts))
 
+
+    # kk = '51013980200'
+    # fig, ax = plt.subplots(figsize=(12, 6))
+    # temp = CTS_Hourly[(CTS_Hourly[sunit] == kk) & (CTS_Hourly['Time'] > split_time)]
+    # temp = temp.set_index(temp['Time'])
+    # ax.plot(temp['All'], label='prediction')
+
     # add holiday/weekend
     holidays = calendar().holidays(start=CTS_Hourly['Time'].dt.date.min(), end=CTS_Hourly['Time'].dt.date.max())
     CTS_Hourly['Holiday'] = CTS_Hourly['Time'].dt.date.astype('datetime64').isin(holidays).astype(int)
@@ -75,6 +83,7 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     CTS_Hourly['Time'] = CTS_Hourly['Time'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
     CTS_Hourly['type'] = 'state'
     print('Len of %s : %s' % (sunit, len(set(CTS_Hourly[sunit]))))
+
 
     # Output: without normalize
     Dyna = CTS_Hourly[['index', 'type', 'Time', sunit] + POI_Type]

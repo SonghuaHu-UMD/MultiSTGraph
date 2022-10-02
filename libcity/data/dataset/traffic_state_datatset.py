@@ -31,6 +31,7 @@ class TrafficStateDataset(AbstractDataset):
         self.scaler_type = self.config.get('scaler', 'none')
         self.ext_scaler_type = self.config.get('ext_scaler', 'none')
         self.load_external = self.config.get('load_external', False)
+        self.load_dynamic = self.config.get('load_dynamic', True)
         self.normal_external = self.config.get('normal_external', False)
         self.add_time_in_day = self.config.get('add_time_in_day', False)
         self.add_day_in_week = self.config.get('add_day_in_week', False)
@@ -40,8 +41,8 @@ class TrafficStateDataset(AbstractDataset):
         self.parameters_str = \
             str(self.dataset) + '_' + str(self.input_window) + '_' + str(self.output_window) + '_' \
             + str(self.train_rate) + '_' + str(self.eval_rate) + '_' + str(self.scaler_type) + '_' \
-            + str(self.batch_size) + '_' + str(self.load_external) + '_' + str(self.add_time_in_day) + '_' \
-            + str(self.add_day_in_week) + '_' + str(self.pad_with_last_sample)
+            + str(self.batch_size) + '_' + str(self.load_external) + '_' + str(self.load_dynamic) + '_' + str(
+                self.add_time_in_day) + '_' + str(self.add_day_in_week) + '_' + str(self.pad_with_last_sample)
         self.cache_file_name = os.path.join('./libcity/cache/dataset_cache/',
                                             'traffic_state_{}.npz'.format(self.parameters_str))
         self.cache_file_folder = './libcity/cache/dataset_cache/'
@@ -615,7 +616,7 @@ class TrafficStateDataset(AbstractDataset):
             day_in_week[np.arange(num_samples), :, dayofweek] = 1
             data_list.append(day_in_week)
         # 外部数据集
-        if ext_data is not None:
+        if ext_data is not None and self.load_dynamic:
             if not is_time_nan:
                 indexs = []
                 for ts in self.timesolts:
@@ -945,7 +946,8 @@ class TrafficStateDataset(AbstractDataset):
                 x_train, y_train, x_val, y_val, x_test, y_test = self._generate_train_val_test()
         # Keep three units only for those needs
         if not self.use_3tu:
-            x_train, x_val, x_test = x_train[:, 0:24, :, :], x_val[:, 0:24, :, :], x_test[:, 0:24, :, :]
+            x_train, x_val, x_test = x_train[:, 0:self.input_window, :, :], x_val[:, 0:self.input_window, :, :], \
+                                     x_test[:, 0:self.input_window, :, :]
         # 数据归一化
         self.feature_dim = x_train.shape[-1]
         self.ext_dim = self.feature_dim - self.output_dim

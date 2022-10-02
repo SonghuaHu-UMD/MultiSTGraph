@@ -260,14 +260,14 @@ class TrafficStateExecutor(AbstractExecutor):
             for batch in test_dataloader:
                 batch.to_tensor(self.device)
                 output = self.model.predict(batch)
-                if self.config.get('model') == 'MultiATGCN':
+                if self.config.get('model') in ['MultiATGCN']:
                     # y_true = y_true.sum(-1, keepdims=True)
                     # y_pred = y_pred.sum(-1, keepdims=True)
                     y_true = self._scaler.inverse_transform(
                         batch['y'][:, 0:self.output_window, :, self.start_dim:self.end_dim])
                     y_pred = self._scaler.inverse_transform(output)
                 else:
-                    y_true = self._scaler.inverse_transform(batch['y'][..., :self.output_dim])
+                    y_true = self._scaler.inverse_transform(batch['y'][:, 0:self.output_window, :, :self.output_dim])
                     y_pred = self._scaler.inverse_transform(output[..., :self.output_dim])
                 y_truths.append(y_true.cpu().numpy())
                 y_preds.append(y_pred.cpu().numpy())

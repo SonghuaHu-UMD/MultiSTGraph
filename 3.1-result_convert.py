@@ -42,9 +42,9 @@ def transfer_gp_data(filenames, ct_visit_mstd):
         print(kk)
         filename = glob.glob(kk + r"\\evaluate_cache\*.npz")
         model_name = glob.glob(kk + '\\model_cache\\*.m')
-        model_name = model_name[0].split('\\')[-1].split('_')[0]
-        print(model_name)
-        if len(filename) > 0:
+        if len(model_name) > 0:
+            model_name = model_name[0].split('\\')[-1].split('_')[0]
+            print(model_name)
             Predict_R = np.load(filename[0])
             sh = Predict_R['prediction'].shape
             print(sh)  # no of batches, output_window, no of nodes, output dim
@@ -72,7 +72,7 @@ def transfer_gp_data(filenames, ct_visit_mstd):
 
 # Read metrics of multiple models
 # ['201901010601_DC', '202001010601_DC', '201901010601_BM', '202001010601_BM']
-time_sps = ['201901010601_DC', '202001010601_DC']
+time_sps = ['201901010601_BM']
 n_steps = 24
 for time_sp in time_sps:
     # time_sp = '202001010601_DC'

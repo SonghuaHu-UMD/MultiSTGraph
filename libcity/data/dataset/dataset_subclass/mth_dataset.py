@@ -19,13 +19,12 @@ class MTHDataset(TrafficStatePointDataset):
         self.feature_name = {'X': 'float', 'y': 'float'}
         self.hour_each_day = self.config.get('hour_each_day', 24)  # hours contained in a day
         self.parameters_str = \
-            str(self.dataset) + '_' + str(self.len_closeness) \
-            + '_' + str(self.len_period) + '_' + str(self.len_trend) \
-            + '_' + str(self.interval_period) + '_' + str(self.interval_trend) \
-            + '_' + str(self.input_window) + '_' + str(self.train_rate) \
-            + '_' + str(self.eval_rate) + '_' + str(self.scaler_type) \
-            + '_' + str(self.batch_size) + '_' + str(self.add_time_in_day) \
-            + '_' + str(self.add_day_in_week) + '_' + str(self.pad_with_last_sample)
+            str(self.dataset) + '_' + str(self.len_closeness) + '_' + str(self.len_period) + '_' + str(
+                self.len_trend) + '_' + str(self.interval_period) + '_' + str(self.interval_trend) + '_' + str(
+                self.input_window) + '_' + str(self.output_window) + '_' + str(self.train_rate) + '_' + str(
+                self.eval_rate) + '_' + str(self.scaler_type) + '_' + str(self.batch_size) + '_' + str(
+                self.load_external) + '_' + str(self.load_dynamic) + '_' + str(self.add_time_in_day) + '_' + str(
+                self.add_day_in_week) + '_' + str(self.pad_with_last_sample)
         self.cache_file_name = os.path.join('./libcity/cache/dataset_cache/',
                                             'point_based_{}.npz'.format(self.parameters_str))
 
@@ -104,7 +103,7 @@ class MTHDataset(TrafficStatePointDataset):
             # (len_closeness * self.input_window, ..., feature_dim)
             closeness_sample = np.concatenate([data_sequence[i: j] for i, j in closeness_indices], axis=0)
 
-        target = data_sequence[label_start_idx: label_start_idx + self.input_window]
+        target = data_sequence[label_start_idx: label_start_idx + self.output_window]
         # (self.input_window, ..., feature_dim)
         return trend_sample, period_sample, closeness_sample, target
 

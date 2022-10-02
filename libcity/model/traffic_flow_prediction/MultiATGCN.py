@@ -250,11 +250,15 @@ class MultiATGCN(AbstractTrafficStateModel):
         # Dim of different variables: Y; time_in_day 1 ; external: future known 2; future unknown 5
         self.start_dim = config.get('start_dim', 0)
         self.end_dim = config.get('end_dim', 1)
+        self.load_dynamic = config.get('load_dynamic', True)
         self.time_index_dim = 1 if self.add_time_in_day else 0
-        self.ext_dim = self.data_feature.get('ext_dim', 1)  # all except end_dim-start_dim
+        self.ext_dim = self.data_feature.get('ext_dim', 1)  # self.feature_dim - self.output_dim
         self.output_dim = self.end_dim - self.start_dim
-        self.future_known = config.get('future_known', 2)  # holiday, weekend
+        self.future_known = config.get('future_known', 0)  # holiday, weekend
         self.future_unknown = self.ext_dim - self.time_index_dim - self.future_known  # weather
+        if self.load_dynamic == False:
+            self.future_known = 0
+            self.future_unknown = 0
         self.feature_raw = self.end_dim - self.start_dim + self.future_unknown + self.future_known
         self.feature_final = self.feature_raw + self.time_index_dim + self.future_known
         self.hidden_dim = config.get('rnn_units', 64)
@@ -265,7 +269,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.len_closeness = self.data_feature.get('len_closeness', 0)
         self.len_ts = int((self.len_period + self.len_trend + self.len_closeness) / 24)
         self.weight_ts = nn.ParameterList(
-            [nn.Parameter(torch.FloatTensor(1, 24, 1, self.feature_raw)) for i in range(self.len_ts)])
+            [nn.Parameter(torch.FloatTensor(1, 24, self.num_nodes, self.feature_raw)) for i in range(self.len_ts)])
 
         # Layers
         self.static_fc = nn.Sequential(
@@ -287,8 +291,11 @@ class MultiATGCN(AbstractTrafficStateModel):
 
     def forward(self, batch):
         # all features except time index
-        source = torch.cat((batch['X'][:, :, :, self.start_dim:self.end_dim],
-                            batch['X'][:, :, :, -self.ext_dim + self.time_index_dim:]), dim=-1)
+        if self.load_dynamic:
+            source = torch.cat((batch['X'][:, :, :, self.start_dim:self.end_dim],
+                                batch['X'][:, :, :, -self.ext_dim + self.time_index_dim:]), dim=-1)
+        else:
+            source = batch['X'][:, :, :, self.start_dim:self.end_dim]
 
         # three temporal unit: end_dim-start_dim + future_unknown (weather) + future_known (holiday/weekend) = 8
         output = 0.0
@@ -323,13 +330,14 @@ class MultiATGCN(AbstractTrafficStateModel):
             output = torch.cat((output, time_in_day), dim=-1)
 
         # future-known variables: holidays and weekends # 2
-        if self.output_window == self.input_window:
-            fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
-            output = torch.cat((output, fknown_var), dim=-1)
-        elif self.output_window < self.input_window:
-            fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
-            fknown_var = F.pad(fknown_var, (0, 0, 0, 0, 0, output.shape[1] - fknown_var.shape[1]), 'replicate')
-            output = torch.cat((output, fknown_var), dim=-1)
+        if self.load_dynamic:
+            if self.output_window == self.input_window:
+                fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
+                output = torch.cat((output, fknown_var), dim=-1)
+            elif self.output_window < self.input_window:
+                fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
+                fknown_var = F.pad(fknown_var, (0, 0, 0, 0, 0, output.shape[1] - fknown_var.shape[1]), 'replicate')
+                output = torch.cat((output, fknown_var), dim=-1)
 
         # GRU encoder: init based on static variables
         init_state = self.encoder.init_hidden(source.shape[0])
@@ -348,7 +356,7 @@ class MultiATGCN(AbstractTrafficStateModel):
     def calculate_loss(self, batch):
         y_true = batch['y']
         y_predicted = self.predict(batch)
-        y_true = self._scaler.inverse_transform(y_true[:, 0:self.output_window, :, self.start_dim:self.end_dim])
+        y_true = self._scaler.inverse_transform(y_true[..., self.start_dim:self.end_dim])
         y_predicted = self._scaler.inverse_transform(y_predicted)
         return loss.masked_mae_torch(y_predicted, y_true, 0)
 
