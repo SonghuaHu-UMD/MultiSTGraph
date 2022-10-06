@@ -19,9 +19,9 @@ import geopandas as gpd
 pd.options.mode.chained_assignment = None
 results_path = r'D:\\ST_Graph\\Data\\'
 geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
-t_s = datetime.datetime(2020, 1, 1)  # datetime.datetime(2019, 3, 1)
-t_e = datetime.datetime(2020, 6, 1)  # datetime.datetime(2019, 7, 1)
-area_c = '_BM'
+t_s = datetime.datetime(2019, 1, 1)  # datetime.datetime(2019, 3, 1)
+t_e = datetime.datetime(2019, 6, 1)  # datetime.datetime(2019, 7, 1)
+area_c = '_DC'
 time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_days = (t_e - t_s).days
 train_ratio = 0.7
@@ -33,10 +33,11 @@ POI_Type = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'R
 # CTS_Info.plot()
 if 'BM' in time_sp:
     ct_list = ['24510', '24005']
-    n_cts = ['24005400500', '24005402202', '24005408303', '24005411409', '24510170300', '24510260604', '24510270701']
+    n_cts = ['24005400500', '24005402202', '24005408303', '24005411409', '24510170300', '24510260604',
+             '24510270701'] + ['24510120100', '24510280404', '24510210100', '24510260403']
 elif 'DC' in time_sp:
     ct_list = ['11001', '51013']
-    n_cts = ['11001009802']
+    n_cts = ['11001009802'] + ['11001003700', '11001006400', '11001004100']
 for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     f_na, f_nas, f_gp, f_gps = '%s_SG_%s_Hourly' % (time_sp, sunit), '%s_SG_%s_Hourly_Single' % (
         time_sp, sunit), '%s_SG_%s_Hourly_GP' % (time_sp, sunit), '%s_SG_%s_Hourly_Single_GP' % (time_sp, sunit)
@@ -66,7 +67,6 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     CTS_Hourly = CTS_Hourly[~CTS_Hourly[sunit].isin(n_cts)].reset_index(drop=True)
     print("No of removed unit: %s" % len(n_cts))
 
-
     # kk = '51013980200'
     # fig, ax = plt.subplots(figsize=(12, 6))
     # temp = CTS_Hourly[(CTS_Hourly[sunit] == kk) & (CTS_Hourly['Time'] > split_time)]
@@ -83,7 +83,6 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     CTS_Hourly['Time'] = CTS_Hourly['Time'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
     CTS_Hourly['type'] = 'state'
     print('Len of %s : %s' % (sunit, len(set(CTS_Hourly[sunit]))))
-
 
     # Output: without normalize
     Dyna = CTS_Hourly[['index', 'type', 'Time', sunit] + POI_Type]
