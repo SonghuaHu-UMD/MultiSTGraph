@@ -130,11 +130,31 @@ class ATGRUCell(nn.Module):
         return torch.zeros(batch_size, self.node_num, self.hidden_dim)
 
 
+class FusionLayer(nn.Module):
+    # Matrix-based fusion
+    def __init__(self, out_window, n, out_dim):
+        super(FusionLayer, self).__init__()
+        # define the trainable parameter
+        self.weights = nn.Parameter(torch.FloatTensor(1, out_window, n, out_dim))
+
+    def forward(self, x):
+        # assuming x is of size B-n-h-w
+        x = x * self.weights  # element-wise multiplication
+        return x
+
+
 class ATGRUEncoder(nn.Module):
     def __init__(self, config, feature_final):
         super(ATGRUEncoder, self).__init__()
         self.num_nodes = config['num_nodes']
         self.feature_final = feature_final
+
+        self.input_window = config.get('input_window', 1)
+        self.output_window = config.get('output_window', 1)
+        self.start_dim = config.get('start_dim', 0)
+        self.end_dim = config.get('end_dim', 1)
+        self.output_dim = self.end_dim - self.start_dim
+
         self.hidden_dim = config.get('rnn_units', 64)
         self.embed_dim = config.get('embed_dim', 10)
         self.num_layers = config.get('num_layers', 2)
@@ -149,6 +169,10 @@ class ATGRUEncoder(nn.Module):
             self.agru_cells.append(ATGRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k,
                                              self.embed_dim, self.adjtype, self.adpadj))
 
+        self.end_conv = nn.Conv2d(self.input_window, self.output_window * self.output_dim,
+                                  kernel_size=(1, self.hidden_dim), bias=True)
+        self.fusionlayer = FusionLayer(self.output_window, self.num_nodes, self.output_dim)
+
     def forward(self, x, init_state, node_emb, node_vec1, node_vec2, supports):
         assert x.shape[2] == self.num_nodes
         seq_length = x.shape[1]
@@ -162,7 +186,12 @@ class ATGRUEncoder(nn.Module):
                 inner_states.append(state)
             output_hidden.append(state)
             current_inputs = torch.stack(inner_states, dim=1)
-        return current_inputs, output_hidden
+        current_inputs = F.dropout(current_inputs, p=0.1, training=self.training)
+        # current_inputs = self.ln(current_inputs)
+        output = self.end_conv(current_inputs)
+        output = output.squeeze(-1).reshape(-1, self.output_window, self.output_dim, self.num_nodes).permute(0, 1, 3, 2)
+        output = self.fusionlayer(output)
+        return output
 
     def init_hidden(self, batch_size):
         init_states = []
@@ -171,7 +200,7 @@ class ATGRUEncoder(nn.Module):
         return torch.stack(init_states, dim=0)
 
 
-class MultiATGCN(AbstractTrafficStateModel):
+class MultiATGCN3UT(AbstractTrafficStateModel):
     def __init__(self, config, data_feature):
         super().__init__(config, data_feature)
         self.num_nodes = data_feature.get('num_nodes', 1)
@@ -184,10 +213,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.embed_dim = config.get('embed_dim', 10)
 
         # Adjacent matrix: OD
-        adj_mx_od = torch.FloatTensor(self.data_feature.get('adj_mx', None))
-        # adj_mx_od = torch.div(adj_mx_od, adj_mx_od.max())
-        # adj_mx_od = adj_mx_od.fill_diagonal_(1)
-        self.adj_mx_od = adj_mx_od
+        self.adj_mx_od = torch.FloatTensor(self.data_feature.get('adj_mx', None))
 
         # Adjacent matrix: Semantic similarity
         self.static = data_feature.get('static', None)
@@ -258,7 +284,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.end_dim = config.get('end_dim', 1)
         self.load_dynamic = config.get('load_dynamic', True)
         self.time_index_dim = 1 if self.add_time_in_day else 0
-        self.ext_dim = self.data_feature.get('ext_dim', 1)  # self.feature_dim - self.output_dim
+        self.ext_dim = self.data_feature.get('ext_dim', 1)  # all except end_dim-start_dim
         self.output_dim = self.end_dim - self.start_dim
         self.future_known = config.get('future_known', 0)  # holiday, weekend
         self.future_unknown = self.ext_dim - self.time_index_dim - self.future_known  # weather
@@ -276,13 +302,14 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.len_ts = int((self.len_period + self.len_trend + self.len_closeness) / 24)
         self.weight_ts = nn.ParameterList(
             [nn.Parameter(torch.FloatTensor(1, 24, self.num_nodes, self.feature_raw)) for i in range(self.len_ts)])
-        self.weight_tsg = nn.ParameterList([nn.Parameter(torch.FloatTensor(1)) for i in range(self.len_ts)])
 
         # Layers
         if self.static is not None:
             self.static_fc = nn.Sequential(OrderedDict(
                 [('embd', nn.Linear(self.static.shape[1], self.hidden_dim, bias=True)), ('relu1', nn.ReLU())]))
-        self.encoder = ATGRUEncoder(config, self.feature_final)
+        self.encoder_close = ATGRUEncoder(config, self.feature_final)
+        self.encoder_period = ATGRUEncoder(config, self.feature_final)
+        self.encoder_trend = ATGRUEncoder(config, self.feature_final)
         self.end_conv = nn.Conv2d(self.input_window, self.output_window * self.output_dim,
                                   kernel_size=(1, self.hidden_dim), bias=True)
 
@@ -297,15 +324,29 @@ class MultiATGCN(AbstractTrafficStateModel):
             else:
                 nn.init.uniform_(p)
 
-    def forward(self, batch):
-        # all features except time index
-        if self.load_dynamic:
-            source = torch.cat((batch['X'][:, :, :, self.start_dim:self.end_dim],
-                                batch['X'][:, :, :, -self.ext_dim + self.time_index_dim:]), dim=-1)
-        else:
-            source = batch['X'][:, :, :, self.start_dim:self.end_dim]
+    def add_future_known(self, dataf, batch):
+        # future-known variables: holidays and weekends # 2
+        if self.output_window == self.input_window:
+            fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
+            dataf = torch.cat((dataf, fknown_var), dim=-1)
+        elif self.output_window < self.input_window:
+            fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
+            fknown_var = F.pad(fknown_var, (0, 0, 0, 0, 0, dataf.shape[1] - fknown_var.shape[1]), 'replicate')
+            dataf = torch.cat((dataf, fknown_var), dim=-1)
+        return dataf
 
-        # three temporal unit: end_dim-start_dim + future_unknown (weather) + future_known (holiday/weekend) = 8
+    def forward(self, batch):
+        # all features
+        source = torch.cat((batch['X'][:, :, :, self.start_dim:self.end_dim],
+                            batch['X'][:, :, :, -self.ext_dim:]), dim=-1)
+
+        # GRU encoder: init based on static variables
+        init_state = self.encoder_close.init_hidden(source.shape[0])
+        if self.static is not None:
+            static_embedding = self.static_fc(self.static)
+            init_state = static_embedding.expand(init_state.shape[0], init_state.shape[1], -1, -1)
+
+        # three temporal unit
         output = 0.0
         ccount = 0
         if self.len_closeness > 0:
@@ -313,52 +354,34 @@ class MultiATGCN(AbstractTrafficStateModel):
             for kk in range(0, int(self.len_closeness / 24)):
                 end_index = begin_index + 24
                 output_hours = source[:, begin_index:end_index, :, :]
+                if self.future_known > 0: output_hours = self.add_future_known(output_hours, batch)
+                output_hours = self.encoder_close(output_hours, init_state, self.node_emb, self.node_vec1,
+                                                  self.node_vec2, self.supports)
+                output += output_hours
                 begin_index = end_index
-                output += self.weight_tsg[ccount] * output_hours * self.weight_ts[ccount]  # element-wise weight
                 ccount += 1
         if self.len_period > 0:
             begin_index = self.len_closeness
             for kk in range(0, int(self.len_period / 24)):
                 end_index = begin_index + 24
                 output_days = source[:, begin_index:end_index, :, :]
+                if self.future_known > 0: output_days = self.add_future_known(output_days, batch)
+                output_days = self.encoder_period(output_days, init_state, self.node_emb, self.node_vec1,
+                                                  self.node_vec2, self.supports)
+                output += output_days
                 begin_index = end_index
-                output += self.weight_tsg[ccount] * output_days * self.weight_ts[ccount]
                 ccount += 1
         if self.len_trend > 0:
             begin_index = self.len_closeness + self.len_period
             for kk in range(0, int(self.len_trend / 24)):
                 end_index = begin_index + 24
                 output_weeks = source[:, begin_index:end_index, :, :]
-                output += self.weight_tsg[ccount] * output_weeks * self.weight_ts[ccount]
+                if self.future_known > 0: output_weeks = self.add_future_known(output_weeks, batch)
+                output_weeks = self.encoder_trend(output_weeks, init_state, self.node_emb, self.node_vec1,
+                                                  self.node_vec2, self.supports)
+                output += output_weeks
+                begin_index = end_index
                 ccount += 1
-        if self.add_time_in_day:  # add back the time_index now: 1
-            begin_index = 0
-            end_index = begin_index + 24
-            time_in_day = batch['X'][:, begin_index:end_index, :, self.end_dim:self.end_dim + 1]
-            output = torch.cat((output, time_in_day), dim=-1)
-
-        # future-known variables: holidays and weekends # 2
-        if self.load_dynamic and self.future_known > 0:
-            if self.output_window == self.input_window:
-                fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
-                output = torch.cat((output, fknown_var), dim=-1)
-            elif self.output_window < self.input_window:
-                fknown_var = batch['y'][:, :, :, self.end_dim + 1:self.end_dim + 1 + self.future_known]
-                fknown_var = F.pad(fknown_var, (0, 0, 0, 0, 0, output.shape[1] - fknown_var.shape[1]), 'replicate')
-                output = torch.cat((output, fknown_var), dim=-1)
-
-        # GRU encoder: init based on static variables
-        init_state = self.encoder.init_hidden(source.shape[0])
-        if self.static is not None:
-            static_embedding = self.static_fc(self.static)
-            init_state = static_embedding.expand(init_state.shape[0], init_state.shape[1], -1, -1)
-        output, output_hidden = self.encoder(output, init_state, self.node_emb, self.node_vec1, self.node_vec2,
-                                             self.supports)
-
-        # CNN-based output
-        output = F.dropout(output, p=0.1, training=self.training)
-        output = self.end_conv(output)  # B, T*C, N, 1
-        output = output.squeeze(-1).reshape(-1, self.output_window, self.output_dim, self.num_nodes).permute(0, 1, 3, 2)
         return output
 
     def calculate_loss(self, batch):

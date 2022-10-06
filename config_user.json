@@ -5,7 +5,7 @@
   "input_window": 24,
   "output_window": 24,
   "load_external": true,
-  "load_dynamic": false,
+  "load_dynamic": true,
   "add_time_in_day": true,
   "add_day_in_week": false,
   "hour_each_day": 24,

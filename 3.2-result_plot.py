@@ -29,7 +29,7 @@ area_c, n_steps, m_name, sunit = '_DC', 24, 'MultiATGCN', 'CTractFIPS'
 time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_st = t_s + datetime.timedelta(days=28)
 t_et = t_e - datetime.timedelta(hours=1)  # print((t_et - t_st).days * 0.15 * 24)
-split_time = t_et - datetime.timedelta(hours=math.ceil((t_et - t_st).days * 0.15 * 24))
+split_time = t_et - datetime.timedelta(hours=math.ceil((t_et - t_st).days * 0.15 * 24) + 24)
 filenames = glob.glob(results_path + r"%s steps\Baselines\%s\*" % (n_steps, time_sp))
 for kk in filenames:
     filename = glob.glob(kk + r"\\evaluate_cache\*.npz")
@@ -54,7 +54,7 @@ P_R['prediction_t'] = P_R['prediction'] * P_R['A_std'] + P_R['A_m']
 P_R['truth_t'] = P_R['truth'] * P_R['A_std'] + P_R['A_m']
 P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
 # Add time
-P_R['Date'] = split_time + pd.to_timedelta(P_R['hour_id'] + 1, 'h')
+P_R['Date'] = split_time + pd.to_timedelta(P_R['hour_id'], 'h') + pd.to_timedelta(P_R['ahead_step'], 'h')
 # P_R = P_R[P_R['Date'] <= t_et].reset_index(drop=True)
 # Add external variables
 external = pd.read_pickle(r'D:\ST_Graph\Results\weather_2019_bmc.pkl')
@@ -70,7 +70,7 @@ P_R_mape = P_R[P_R['truth_t'] > 10].groupby([sunit]).mean()['MAPE'].sort_values(
 P_R_truth = P_R.groupby([sunit]).mean()['truth_t'].sort_values()
 fig, ax = plt.subplots(figsize=(12, 6))
 for kk in ['51013980200']:
-    temp = P_R[(P_R[sunit] == kk) & (P_R['ahead_step'] == 0)]
+    temp = P_R[(P_R[sunit] == kk) & (P_R['ahead_step'] == 23)]
     temp = temp.set_index(temp['Date'])
     ax.plot(temp['prediction_t'], label='prediction')
     ax.plot(temp['truth_t'], label='truth')
@@ -79,5 +79,3 @@ for kk in ['51013980200']:
     ax.plot(temp['weekend'], label='weekend')
 plt.legend()
 plt.tight_layout()
-
-

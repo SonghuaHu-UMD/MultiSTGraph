@@ -172,7 +172,7 @@ class GMANDataset(MTHDataset):
         self.add_day_in_week = self.config.get('add_day_in_week', False)
         self.SE_config = {'is_directed': True, 'p': 2, 'q': 1, 'num_walks': 100,
                           'walk_length': 80, 'dimensions': self.D, 'window_size': 10,
-                          'iter': 20}
+                          'iter': 50}
         self.SE_config_str = 'SE_' + str(self.SE_config['is_directed']) + '_' + str(self.SE_config['p']) + \
                              '_' + str(self.SE_config['q']) + '_' + str(self.SE_config['num_walks']) + \
                              '_' + str(self.SE_config['walk_length']) + '_' + str(self.SE_config['dimensions']) + \

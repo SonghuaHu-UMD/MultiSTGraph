@@ -171,6 +171,28 @@ class ATGRUEncoder(nn.Module):
         return torch.stack(init_states, dim=0)
 
 
+class OutputLayer(nn.Module):
+    def __init__(self, num_of_vertices, input_length, num_of_features, num_of_filters=128, predict_length=12,
+                 output_dim=1):
+        super().__init__()
+        self.num_of_vertices = num_of_vertices
+        self.input_length = input_length
+        self.num_of_features = num_of_features
+        self.num_of_filters = num_of_filters
+        self.predict_length = predict_length
+        self.output_dim = output_dim
+        self.hidden_layer = nn.Linear(self.input_length * self.num_of_features, self.num_of_filters)
+        self.ouput_layer = nn.Linear(self.num_of_filters, self.predict_length * self.output_dim)
+
+    def forward(self, data):
+        data = torch.transpose(data, 1, 2)
+        data = torch.reshape(data, (-1, self.num_of_vertices, self.input_length * self.num_of_features))
+        data = torch.relu(self.hidden_layer(data))
+        data = self.ouput_layer(data).reshape((-1, self.num_of_vertices, self.predict_length, self.output_dim))
+        data = data.permute(0, 2, 1, 3)
+        return data
+
+
 class MultiATGCN(AbstractTrafficStateModel):
     def __init__(self, config, data_feature):
         super().__init__(config, data_feature)
@@ -265,8 +287,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         if self.load_dynamic == False:
             self.future_known = 0
             self.future_unknown = 0
-        self.feature_raw = self.end_dim - self.start_dim + self.future_unknown + self.future_known
-        self.feature_final = self.feature_raw + self.time_index_dim + self.future_known
+        self.feature_final = self.end_dim - self.start_dim + self.time_index_dim + self.future_known
         self.hidden_dim = config.get('rnn_units', 64)
 
         # Merge of multi-time heads
@@ -275,13 +296,24 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.len_closeness = self.data_feature.get('len_closeness', 0)
         self.len_ts = int((self.len_period + self.len_trend + self.len_closeness) / 24)
         self.weight_ts = nn.ParameterList(
-            [nn.Parameter(torch.FloatTensor(1, 24, self.num_nodes, self.feature_raw)) for i in range(self.len_ts)])
+            [nn.Parameter(torch.FloatTensor(1, 24, self.num_nodes, self.output_dim)) for i in range(self.len_ts)])
         self.weight_tsg = nn.ParameterList([nn.Parameter(torch.FloatTensor(1)) for i in range(self.len_ts)])
 
         # Layers
         if self.static is not None:
             self.static_fc = nn.Sequential(OrderedDict(
                 [('embd', nn.Linear(self.static.shape[1], self.hidden_dim, bias=True)), ('relu1', nn.ReLU())]))
+        if self.load_dynamic:
+            self.exter_fc = nn.Sequential(
+                OrderedDict([('embd', nn.Linear((self.future_unknown + 2 * self.future_known) * self.input_window,
+                                                64, bias=True)),
+                             ('relu1', nn.ReLU()), ('linear', nn.Linear(64, self.output_window * self.output_dim,
+                                                                        bias=True)), ('relu1', nn.ReLU())]))
+            # self.exter_fc = nn.Sequential(OrderedDict(
+            #     [('embd', nn.Linear(self.future_unknown + 2 * self.future_known, self.hidden_dim, bias=True)),
+            #      ('relu1', nn.ReLU())]))
+            # self.exter_conv = nn.Conv2d(self.input_window, self.output_window * self.output_dim,
+            #                             kernel_size=(1, self.hidden_dim), bias=True)
         self.encoder = ATGRUEncoder(config, self.feature_final)
         self.end_conv = nn.Conv2d(self.input_window, self.output_window * self.output_dim,
                                   kernel_size=(1, self.hidden_dim), bias=True)
@@ -298,12 +330,8 @@ class MultiATGCN(AbstractTrafficStateModel):
                 nn.init.uniform_(p)
 
     def forward(self, batch):
-        # all features except time index
-        if self.load_dynamic:
-            source = torch.cat((batch['X'][:, :, :, self.start_dim:self.end_dim],
-                                batch['X'][:, :, :, -self.ext_dim + self.time_index_dim:]), dim=-1)
-        else:
-            source = batch['X'][:, :, :, self.start_dim:self.end_dim]
+        # population inflow
+        source = batch['X'][:, :, :, self.start_dim:self.end_dim]
 
         # three temporal unit: end_dim-start_dim + future_unknown (weather) + future_known (holiday/weekend) = 8
         output = 0.0
@@ -352,14 +380,28 @@ class MultiATGCN(AbstractTrafficStateModel):
         if self.static is not None:
             static_embedding = self.static_fc(self.static)
             init_state = static_embedding.expand(init_state.shape[0], init_state.shape[1], -1, -1)
-        output, output_hidden = self.encoder(output, init_state, self.node_emb, self.node_vec1, self.node_vec2,
-                                             self.supports)
+        outputs, output_hidden = self.encoder(output, init_state, self.node_emb, self.node_vec1, self.node_vec2,
+                                              self.supports)
 
         # CNN-based output
-        output = F.dropout(output, p=0.1, training=self.training)
-        output = self.end_conv(output)  # B, T*C, N, 1
-        output = output.squeeze(-1).reshape(-1, self.output_window, self.output_dim, self.num_nodes).permute(0, 1, 3, 2)
-        return output
+        outputs = F.dropout(outputs, p=0.1, training=self.training)
+        outputs = self.end_conv(outputs)
+        outputs = outputs.squeeze(-1).reshape(-1, self.output_window, self.output_dim, self.num_nodes) \
+            .permute(0, 1, 3, 2)
+
+        # # External enrich
+        # if self.load_dynamic:
+        #     # future-known (2, Y) + future-unknown (5, X) + future-known (2, X)
+        #     exter_vars = torch.cat(
+        #         (batch['X'][:, 0:self.input_window, :, self.end_dim + self.time_index_dim:], fknown_var), dim=-1)
+        #     # exter_vars = self.exter_conv(self.exter_fc(exter_vars))
+        #     # exter_vars = exter_vars.squeeze(-1).reshape(-1, self.output_window, self.output_dim, self.num_nodes) \
+        #     #     .permute(0, 1, 3, 2)
+        #     # outputs = outputs + exter_vars
+        #     exter_vars = torch.permute(exter_vars, (0, 2, 1, 3)).reshape(exter_vars.shape[0], self.num_nodes, -1)
+        #     outputs = outputs + self.exter_fc(exter_vars).reshape(-1, self.num_nodes, self.output_window,
+        #                                                           self.output_dim).permute(0, 2, 1, 3)
+        return outputs
 
     def calculate_loss(self, batch):
         y_true = batch['y']

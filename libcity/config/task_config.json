@@ -49,7 +49,8 @@
       "FNN",
       "GSNet",
       "CSTN",
-      "MultiATGCN"
+      "MultiATGCN",
+      "MultiATGCN3UT"
     ],
     "allowed_dataset": [
       "METR_LA",
@@ -116,13 +117,18 @@
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     },
+    "MultiATGCN3UT": {
+      "dataset_class": "MTHDataset",
+      "executor": "TrafficStateExecutor",
+      "evaluator": "TrafficStateEvaluator"
+    },
     "TGCN": {
       "dataset_class": "MTHDataset",
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     },
     "ASTGCN": {
-      "dataset_class": "MTHDataset",
+      "dataset_class": "ASTGCNDataset",
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     },
@@ -171,6 +177,5 @@
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     }
-
   }
 }
