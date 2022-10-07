@@ -8,6 +8,10 @@ import geopandas as gpd
 import seaborn as sns
 import matplotlib.dates as mdates
 import matplotlib as mpl
+import torch
+import torch.nn.functional as F
+from scipy.spatial.distance import cdist
+import functools as ft
 
 pd.options.mode.chained_assignment = None
 
@@ -18,6 +22,33 @@ plt.rcParams.update(
      'ytick.direction': 'in', 'ytick.major.size': 0.5, 'ytick.minor.size': 1.5, 'ytick.minor.width': 0.5,
      'ytick.minor.visible': True, 'ytick.right': True, 'axes.linewidth': 0.5, 'grid.linewidth': 0.5,
      'lines.linewidth': 1.5, 'legend.frameon': False, 'savefig.bbox': 'tight', 'savefig.pad_inches': 0.05})
+
+
+def calculate_adjacency_matrix_dist(dist_mx, weight_adj_epsilon=0.0):
+    distances = dist_mx[~np.isinf(dist_mx)].flatten()
+    std = distances.std()
+    dist_mx = np.exp(-np.square(dist_mx / std))
+    dist_mx[dist_mx < weight_adj_epsilon] = 0
+    return dist_mx
+
+
+def haversine_array(lat1, lng1, lat2, lng2):
+    lat1, lng1, lat2, lng2 = map(np.radians, (lat1, lng1, lat2, lng2))
+    AVG_EARTH_RADIUS = 6371  # in km
+    lat = lat2 - lat1
+    lng = lng2 - lng1
+    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(lng * 0.5) ** 2
+    h = 2 * AVG_EARTH_RADIUS * np.arcsin(np.sqrt(d))
+    return h
+
+
+def adj_wide2long(learned_graph, Geo_Info, colname):
+    learned_graph.columns = list(Geo_Info['geo_id'])
+    learned_graph.set_index(pd.Index(list(Geo_Info['geo_id'])), inplace=True)
+    learned_graph = learned_graph.unstack().reset_index()
+    learned_graph.columns = ['origin', 'des', colname]
+    return learned_graph
+
 
 # Para setting
 results_path = r'D:\\ST_Graph\\Data\\'
@@ -36,12 +67,7 @@ f_na, f_nas, f_gp, f_gps = '%s_SG_%s_Hourly' % (time_sp, sunit), '%s_SG_%s_Hourl
 # Read geo files
 Geo_Info = pd.read_csv(results_path + r'Lib_Data\%s\%s.geo' % (f_nas, f_nas))
 Geo_Info['geo_id'] = Geo_Info['geo_id'].astype(str)
-if sunit == 'CTSFIPS':
-    CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_cty_sub_2019.shp')
-elif sunit == 'CTractFIPS':
-    CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_tract_2019.shp')
-elif sunit == 'CBGFIPS':
-    CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_blck_grp_2019.shp')
+CBG_Info = gpd.GeoDataFrame.from_file(geo_path + r'nhgis0011_shape\\US_tract_2019.shp')
 CBG_Info = CBG_Info[CBG_Info['GEOID'].isin(Geo_Info['geo_id'])]
 print(len(CBG_Info) == len(Geo_Info))
 CBG_Info = CBG_Info.to_crs("EPSG:4326").reset_index(drop=True)
@@ -108,5 +134,93 @@ ax.plot(Dyna.groupby('time')['Visits'].mean(), color='k', alpha=0.6, lw=1.5)
 ax.plot([split_time, split_time], [-1, 25], '-.', color='green', alpha=0.6, lw=3)
 ax.plot([test_time, test_time], [-1, 25], '-.', color='blue', alpha=0.6, lw=3)
 plt.tight_layout()
-plt.savefig(r'D:\ST_Graph\Figures\single\%s_%s_normal_times_plot.png' % (time_sp, sunit), dpi=1000)
+plt.savefig(r'D:\ST_Graph\Figures\single\%s_%s_normal_daily_plot.png' % (time_sp, sunit), dpi=1000)
 plt.close()
+
+# Figure 3: weekly plot
+Dyna = pd.read_csv(results_path + r'Lib_Data\%s\%s.dyna' % (f_gps, f_gps))
+Dyna['time'] = pd.to_datetime(Dyna['time'])
+Dyna['dayofweek'] = Dyna['time'].dt.dayofweek
+Dyna['hour'] = Dyna['time'].dt.hour
+Dyna_avg = Dyna.groupby(['entity_id', 'dayofweek', 'hour']).mean()['Visits'].reset_index()
+fig, ax = plt.subplots(figsize=(10, 6))
+for kk in set(Dyna_avg['entity_id']):
+    tempfile = Dyna_avg[Dyna_avg['entity_id'] == kk]
+    tempfile = tempfile.sort_values(by=['dayofweek', 'hour']).reset_index(drop=True).reset_index()
+    ax.plot(tempfile['index'], tempfile['Visits'], label=kk, alpha=0.4, lw=1)
+ax.set_ylabel('Hourly Population Inflow (Normalized)')
+ax.set_xlabel('Hour')
+Dyna_avg_a = Dyna.groupby(['dayofweek', 'hour']).mean()['Visits'].reset_index().reset_index()
+ax.plot(Dyna_avg_a['index'], Dyna_avg_a['Visits'], color='k', alpha=0.6, lw=2)
+plt.tight_layout()
+plt.savefig(r'D:\ST_Graph\Figures\single\%s_%s_normal_weekly_plot.png' % (time_sp, sunit), dpi=1000)
+plt.close()
+
+# Figure 4: plot graphs
+Geo_Info = pd.read_csv(results_path + r'Lib_Data\%s\%s.geo' % (f_nas, f_nas))
+Geo_Info['geo_id'] = Geo_Info['geo_id'].astype(str)
+
+# Learned adj matrix
+cache_name = r'C:\Users\huson\PycharmProjects\MultiSTGraph\libcity\cache\4069\model_cache\MultiATGCN_201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.m'
+model_state, optimizer_state = torch.load(cache_name)
+# learned_graph = torch.matmul(model_state['node_vec1'], model_state['node_vec2'])
+learned_graph = pd.DataFrame(
+    F.softmax(F.relu(torch.mm(model_state['node_vec1'], model_state['node_vec2']))).cpu().numpy())
+# sns.heatmap(learned_graph.cpu(), cmap='coolwarm', square=True)
+learned_graph = adj_wide2long(learned_graph, Geo_Info, 'learned_weight')
+
+# Adjacent matrix: Distance
+Geo_Info[['x', 'y']] = Geo_Info['coordinates']. \
+    str.replace('[', ',').str.replace(']', ',').str.split(r',', expand=True)[[1, 2]].astype(float)
+geo_mx = pd.concat([Geo_Info] * len(Geo_Info), ignore_index=True)
+geo_mx[['geo_id_1', 'x_1', 'y_1']] = Geo_Info.loc[
+    Geo_Info.index.repeat(len(Geo_Info)), ['geo_id', 'x', 'y']].reset_index(drop=True)
+geo_mx['dist'] = haversine_array(geo_mx['y'], geo_mx['x'], geo_mx['y_1'], geo_mx['x_1'])
+geo_mx = geo_mx.pivot(index='geo_id', columns='geo_id_1', values='dist').values
+adj_mx_dis = pd.DataFrame(calculate_adjacency_matrix_dist(geo_mx, 0.0))
+adj_mx_dis = adj_wide2long(adj_mx_dis, Geo_Info, 'distance_weight')
+
+# Adjacent matrix: similarity
+static = pd.read_csv(results_path + r'Lib_Data\%s\%s.static' % (f_nas, f_nas))
+static_euc = cdist(static.values[:, 1:], static.values[:, 1:], metric='euclidean')
+static_euc[static_euc == 0] = 1
+adj_mx_cos = pd.DataFrame(1 / static_euc)
+adj_mx_cos = adj_wide2long(adj_mx_cos, Geo_Info, 'similar_weight')
+
+# Adjacent matrix: OD
+od_adj = pd.read_csv(results_path + r'Lib_Data\%s\%s.rel' % (f_nas, f_nas))
+adj_mx_od = od_adj[['origin_id', 'destination_id', 'link_weight']]
+adj_mx_od.columns = ['origin', 'des', 'od_weight']
+adj_mx_od['origin'] = adj_mx_od['origin'].astype(str)
+adj_mx_od['des'] = adj_mx_od['des'].astype(str)
+
+# merge all
+adj_final = ft.reduce(lambda left, right: pd.merge(left, right, on=['origin', 'des']),
+                      [adj_mx_od, adj_mx_cos, adj_mx_dis, learned_graph])
+clos = adj_final.select_dtypes(include=[np.number]).columns
+adj_final[clos] = (adj_final[clos] - adj_final[clos].min()) / (adj_final[clos].max() - adj_final[clos].min())
+print(adj_final[clos].corr())
+print(adj_final[clos].describe())
+
+Geo_Infoxy = Geo_Info[['geo_id', 'x', 'y']]
+Geo_Infoxy.columns = ['origin', 'O_Lng', 'O_Lat']
+adj_final = adj_final.merge(Geo_Infoxy, on='origin')
+Geo_Infoxy.columns = ['des', 'D_Lng', 'D_Lat']
+adj_final = adj_final.merge(Geo_Infoxy, on='des')
+
+# Plot
+for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
+    fig, ax = plt.subplots(figsize=(9, 7))
+    poly.geometry.boundary.plot(color=None, edgecolor='k', linewidth=0.3, ax=ax)
+    Cn = adj_final[adj_final[p1] > np.percentile(adj_final[p1], 90)].reset_index(drop=True)
+    print(len(Cn))
+    for kk in range(0, len(Cn)):
+        ax.annotate('', xy=(Cn.loc[kk, 'O_Lng'], Cn.loc[kk, 'O_Lat']),
+                    xytext=(Cn.loc[kk, 'D_Lng'], Cn.loc[kk, 'D_Lat']),
+                    arrowprops={'arrowstyle': '-', 'lw': (Cn.loc[kk, p1] / max(Cn.loc[:, p1])) * 3,
+                                'color': 'royalblue', 'alpha': 0.5, 'connectionstyle': "arc3,rad=0.2"}, va='center')
+    ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    ax.axis('off')
+    ax.set_title('Adjacent matrix (%s)' % p1, pad=-0)
+    plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s.png' % p1, dpi=600)
+    plt.close()

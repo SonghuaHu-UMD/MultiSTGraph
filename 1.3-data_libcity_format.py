@@ -38,6 +38,7 @@ if 'BM' in time_sp:
 elif 'DC' in time_sp:
     ct_list = ['11001', '51013']
     n_cts = ['11001009802'] + ['11001003700', '11001006400', '11001004100']
+
 for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     f_na, f_nas, f_gp, f_gps = '%s_SG_%s_Hourly' % (time_sp, sunit), '%s_SG_%s_Hourly_Single' % (
         time_sp, sunit), '%s_SG_%s_Hourly_GP' % (time_sp, sunit), '%s_SG_%s_Hourly_Single_GP' % (time_sp, sunit)
