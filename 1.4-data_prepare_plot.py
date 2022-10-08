@@ -54,7 +54,7 @@ def adj_wide2long(learned_graph, Geo_Info, colname):
 results_path = r'D:\\ST_Graph\\Data\\'
 geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
 t_s, t_e = datetime.datetime(2019, 1, 1), datetime.datetime(2019, 6, 1)  # datetime.datetime(2019, 7, 1)
-area_c, sunit = '_DC', 'CTractFIPS'
+area_c, sunit = '_BM', 'CTractFIPS'
 time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_days = (t_e - t_s).days
 train_ratio = 0.7
@@ -161,7 +161,10 @@ Geo_Info = pd.read_csv(results_path + r'Lib_Data\%s\%s.geo' % (f_nas, f_nas))
 Geo_Info['geo_id'] = Geo_Info['geo_id'].astype(str)
 
 # Learned adj matrix
-cache_name = r'C:\Users\huson\PycharmProjects\MultiSTGraph\libcity\cache\4069\model_cache\MultiATGCN_201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.m'
+if area_c == '_DC':
+    cache_name = r'D:\ST_Graph\results_record\3 steps\Final\201901010601_DC\24375\model_cache\MultiATGCN_201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.m'
+else:
+    cache_name = r'D:\ST_Graph\results_record\24 steps\Final\201901010601_BM\47938\model_cache\MultiATGCN_201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.m'
 model_state, optimizer_state = torch.load(cache_name)
 # learned_graph = torch.matmul(model_state['node_vec1'], model_state['node_vec2'])
 learned_graph = pd.DataFrame(
@@ -191,14 +194,20 @@ adj_mx_cos = adj_wide2long(adj_mx_cos, Geo_Info, 'similar_weight')
 od_adj = pd.read_csv(results_path + r'Lib_Data\%s\%s.rel' % (f_nas, f_nas))
 adj_mx_od = od_adj[['origin_id', 'destination_id', 'link_weight']]
 adj_mx_od.columns = ['origin', 'des', 'od_weight']
+adj_mx_od_max = adj_mx_od[adj_mx_od['origin'] == adj_mx_od['des']]
+adj_mx_od_max = adj_mx_od_max[['des', 'od_weight']]
+adj_mx_od_max.columns = ['des', 'dia_weight']
+adj_mx_od = adj_mx_od.merge(adj_mx_od_max, on='des')
+adj_mx_od['od_weight'] = adj_mx_od['od_weight'] / adj_mx_od['dia_weight']
 adj_mx_od['origin'] = adj_mx_od['origin'].astype(str)
 adj_mx_od['des'] = adj_mx_od['des'].astype(str)
+adj_mx_od = adj_mx_od[['origin', 'des', 'od_weight']]
 
 # merge all
 adj_final = ft.reduce(lambda left, right: pd.merge(left, right, on=['origin', 'des']),
                       [adj_mx_od, adj_mx_cos, adj_mx_dis, learned_graph])
 clos = adj_final.select_dtypes(include=[np.number]).columns
-adj_final[clos] = (adj_final[clos] - adj_final[clos].min()) / (adj_final[clos].max() - adj_final[clos].min())
+# adj_final[clos] = (adj_final[clos] - adj_final[clos].min()) / (adj_final[clos].max() - adj_final[clos].min())
 print(adj_final[clos].corr())
 print(adj_final[clos].describe())
 
@@ -217,10 +226,11 @@ for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
     for kk in range(0, len(Cn)):
         ax.annotate('', xy=(Cn.loc[kk, 'O_Lng'], Cn.loc[kk, 'O_Lat']),
                     xytext=(Cn.loc[kk, 'D_Lng'], Cn.loc[kk, 'D_Lat']),
-                    arrowprops={'arrowstyle': '-', 'lw': (Cn.loc[kk, p1] / max(Cn.loc[:, p1])) * 3,
-                                'color': 'royalblue', 'alpha': 0.5, 'connectionstyle': "arc3,rad=0.2"}, va='center')
+                    arrowprops={'arrowstyle': '-',
+                                'lw': min((Cn.loc[kk, p1] / np.percentile(Cn.loc[:, p1], 95)) * 3, 3),
+                                'color': 'royalblue', 'alpha': 0.3, 'connectionstyle': "arc3,rad=0.2"}, va='center')
     ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
     ax.axis('off')
     ax.set_title('Adjacent matrix (%s)' % p1, pad=-0)
-    plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s.png' % p1, dpi=600)
+    plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s_%s.png' % (p1, area_c), dpi=600)
     plt.close()

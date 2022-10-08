@@ -185,8 +185,7 @@ class MultiATGCN(AbstractTrafficStateModel):
 
         # Adjacent matrix: OD
         adj_mx_od = torch.FloatTensor(self.data_feature.get('adj_mx', None))
-        # adj_mx_od = torch.div(adj_mx_od, adj_mx_od.max())
-        # adj_mx_od = adj_mx_od.fill_diagonal_(1)
+        adj_mx_od = torch.div(adj_mx_od, torch.diag(adj_mx_od, 0))
         self.adj_mx_od = adj_mx_od
 
         # Adjacent matrix: Semantic similarity
@@ -308,6 +307,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         # three temporal unit: end_dim-start_dim + future_unknown (weather) + future_known (holiday/weekend) = 8
         output = 0.0
         ccount = 0
+        # g_w = F.softmax(torch.FloatTensor([self.weight_tsg[i] for i in range(self.len_ts)]), -1)
         if self.len_closeness > 0:
             begin_index = 0
             for kk in range(0, int(self.len_closeness / 24)):
@@ -316,7 +316,7 @@ class MultiATGCN(AbstractTrafficStateModel):
                 begin_index = end_index
                 output += self.weight_tsg[ccount] * output_hours * self.weight_ts[ccount]  # element-wise weight
                 ccount += 1
-        if self.len_period > 0:
+        if self.len_period > 0 and self.output_window >= 6:
             begin_index = self.len_closeness
             for kk in range(0, int(self.len_period / 24)):
                 end_index = begin_index + 24
@@ -324,7 +324,7 @@ class MultiATGCN(AbstractTrafficStateModel):
                 begin_index = end_index
                 output += self.weight_tsg[ccount] * output_days * self.weight_ts[ccount]
                 ccount += 1
-        if self.len_trend > 0:
+        if self.len_trend > 0 and self.output_window >= 6:
             begin_index = self.len_closeness + self.len_period
             for kk in range(0, int(self.len_trend / 24)):
                 end_index = begin_index + 24
