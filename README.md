@@ -33,7 +33,7 @@ you will get a set of atomic files following the [LibCity](https://github.com/Li
 | config.json | Used to supplement the description of the above table information.              |                                           |
 
 Data are retrieved from [SafeGraph](https://www.safegraph.com/) using the Weekly Places Patterns Dataset. 
-If you want to extract dataset in other areas from the raw dataset. Run the following codes at  `./data_prepare`.
+If you want to extract dataset in other areas from the raw dataset. Run codes at  `./data_prepare`.
 The data statistics of two datasets are as followed:
 
 |                           | Washington, D.C.                              | Baltimore City (and surrounding counties) |
@@ -51,7 +51,7 @@ The data statistics of two datasets are as followed:
 
 ## Code Structure
 For easy comparison among different models, the code and data formats follow the framework proposed by [LibCity](https://github.com/LibCity/Bigscity-LibCity):
-* The code for Multi-ATGCN is located at `./libcity/model/traffic_flow_prediction/`.
+* The code for Multi-ATGCN is located at `./libcity/model/traffic_flow_prediction/MultiATGCN.py`.
 * The code for dataset preprocessing is located at `./libcity/data/dataset/dataset_subclass/mth_dataset.py`.
 * The code for other baselines is located at `./libcity/model/`.
 
