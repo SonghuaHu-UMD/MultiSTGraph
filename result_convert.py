@@ -9,8 +9,8 @@ from sklearn.metrics import r2_score, explained_variance_score
 import datetime
 
 pd.options.mode.chained_assignment = None
-results_path = r'D:\ST_Graph\results_record\\'
-
+# results_path = r'D:\ST_Graph\results_record\\'
+results_path = '.\libcity\cache\\*'
 plt.rcParams.update(
     {'font.size': 13, 'font.family': "serif", 'mathtext.fontset': 'dejavuserif', 'xtick.direction': 'in',
      'xtick.major.size': 0.5, 'grid.linestyle': "--", 'axes.grid': True, "grid.alpha": 1, "grid.color": "#cccccc",
@@ -70,54 +70,19 @@ def transfer_gp_data(filenames, ct_visit_mstd):
     return m_m
 
 
-# Read metrics of multiple models
-time_sps, n_steps, nfold = ['201901010601_BM', '201901010601_DC'], [3, 6, 12, 24], 'Final'
-for time_sp in time_sps:
-    for n_step in n_steps:
-        # time_sp = '202001010601_DC'
-        sunit = 'CTractFIPS'
-        filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_step, nfold, time_sp))
-        all_results = get_gp_data(filenames)
-        if len(all_results) > 0:
-            all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
-            all_results_avg = all_results_avg[~all_results_avg['Model_name'].isin(['STSGCN', 'STTN', 'RNN'])]
-            all_results_avg.to_csv(r"D:\ST_Graph\Results\M_%s_gp_%s_steps_%s_%s.csv" % (nfold, n_step, sunit, time_sp))
-
-            # Re-transform the data
-            ct_visit_mstd = pd.read_pickle(r'D:\ST_Graph\Results\%s_%s_visit_mstd.pkl' % (sunit, time_sp)).sort_values(
-                by=sunit).reset_index(drop=True)
-            m_m = transfer_gp_data(filenames, ct_visit_mstd)
-            m_md = pd.DataFrame(m_m)
-            m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
-            all_results_avg_t = m_md.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
-            all_results_avg_t = all_results_avg_t[~all_results_avg_t['Model_name'].isin(['STSGCN', 'STTN', 'RNN'])]
-            all_results_avg_t.to_csv(
-                r"D:\ST_Graph\Results\M_%s_truth_%s_steps_%s_%s.csv" % (nfold, n_step, sunit, time_sp))
-
-# Read metrics of multiple parameters
-time_sps = ['201901010601_DC']
-# para_list,n_repeat,para_name = ['od-bidirection', 'od-unidirection', 'od', 'dist', 'cosine', 'identity'],5, 'Graphs'
-para_list = [''.join(str(x)) for x in [[True, True, True], [True, True, False], [True, False, False],
-                                       [False, False, False], [False, True, False]]]
-n_repeat, para_name, n_steps = 4, 'P_Exter', 24
-for time_sp in time_sps:
-    # time_sp = '202001010601_DC'
-    sunit = 'CTractFIPS'
-    filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_steps, para_name, time_sp))
-    all_results = get_gp_data(filenames)
-    all_results = all_results.sort_values(by=['Model_time', 'index']).reset_index(drop=True)
-    all_results['Para'] = np.repeat(para_list, n_steps * n_repeat)
-    all_results_avg = all_results.groupby(['Para']).mean().sort_values(by='MAE').reset_index()
-    all_results_avg.to_csv(r"D:\ST_Graph\Results\results_%s_gp_%s_%s.csv" % (para_name, sunit, time_sp))
+data_name = '201901010601_DC'
+filenames = glob.glob(results_path)
+filenames = [var for var in filenames if 'dataset_cache' not in var]
+all_results = get_gp_data(filenames)
+if len(all_results) > 0:
+    all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
+    all_results_avg.to_csv(r".\results\M_average.csv")
 
     # Re-transform the data
-    ct_visit_mstd = pd.read_pickle(r'D:\ST_Graph\Results\%s_%s_visit_mstd.pkl' % (sunit, time_sp))
-    ct_visit_mstd = ct_visit_mstd.sort_values(by=sunit).reset_index(drop=True)
-    # Read prediction result
+    ct_visit_mstd = pd.read_pickle(r'.\other_data\%s_%s_visit_mstd.pkl' % ('CTractFIPS', data_name)).sort_values(
+        by='CTractFIPS').reset_index(drop=True)
     m_m = transfer_gp_data(filenames, ct_visit_mstd)
     m_md = pd.DataFrame(m_m)
     m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
-    m_md = m_md.sort_values(by=['Model_time', 'index']).reset_index(drop=True)
-    m_md['Para'] = np.repeat(para_list, n_steps * n_repeat)
-    all_results_avg_t = m_md.groupby(['Para']).mean().sort_values(by='MAE').reset_index()
-    all_results_avg_t.to_csv(r"D:\ST_Graph\Results\results_%s_truth_%s_%s.csv" % (para_name, sunit, time_sp))
+    all_results_avg_t = m_md.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
+    all_results_avg_t.to_csv(r".\results\M_truth.csv")
