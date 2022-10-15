@@ -1,6 +1,6 @@
 # Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting
 
-![Multi-ATGCN](figures/framework.jpg "Model Architecture")
+![Multi-ATGCN](figures/framework.png "Model Architecture")
 
 This is a PyTorch implementation of Multi-ATGCN in the following working paper: \
 Songhua Hu, ... ,Paul Schonfled, 2022, Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting
