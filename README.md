@@ -47,6 +47,8 @@ The data statistics of two datasets are as followed:
 | Mean of crowd flow        | 30.169                                        | 14.41                                     |
 | St.d. of crowd flow       | 84.023                                        | 29.3                                      |
 
+![Data Preparation](figures/DC.png "DC")
+
 ## Code Structure
 For easy comparison among different models, the code and data formats follow the framework proposed by [LibCity](https://github.com/LibCity/Bigscity-LibCity):
 * The code for Multi-ATGCN is located at `./libcity/model/traffic_flow_prediction/`.
@@ -88,7 +90,7 @@ python run_model_parameters.py --task traffic_state_pred --dataset 201901010601_
 
 If you are using Google Colab, we also provide a notebook named `Colab_run_model.ipynb` to execute in Colab environment.
 
-:exclamation: After running the model, you should run the code "result_convert.py" to inversely transform the prediction to recover its scale, since we employ a census tract-based normalization. 
+:exclamation: After running the model, you should run the code `result_convert.py` to inversely transform the prediction to recover its scale, since we employ a census tract-based normalization. 
 Make sure to clean the `./libcity/cache` fold before run a new round of experiment.
 
 ### Results
@@ -122,6 +124,6 @@ Make sure to clean the `./libcity/cache` fold before run a new round of experime
 | LSTM       | 12.3307 | 24.4955 | 0.5479 | 0.3666 |
 
 #### Multi-view graph learning
-![PyTorch Results](figures/graphs.png "Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning")
+![Multi-view graph learning](figures/graphs.png "Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning")
 Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning.
 
