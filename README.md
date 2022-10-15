@@ -94,34 +94,6 @@ If you are using Google Colab, we also provide a notebook named `Colab_run_model
 Make sure to clean the `./libcity/cache` fold before run a new round of experiment.
 
 ### Results
-#### Model performance in DC area
-| Model_name | MAE     | RMSE    | R2     | MAPE   |
-|------------|---------|---------|--------|--------|
-| MultiATGCN | 11.9197 | 33.9775 | 0.9287 | 0.2714 |
-| ASTGCN     | 12.2512 | 33.3753 | 0.9359 | 0.2727 |
-| STGCN      | 12.9191 | 37.4189 | 0.9111 | 0.2735 |
-| GMAN       | 13.5238 | 38.3246 | 0.9184 | 0.2928 |
-| MTGNN      | 13.8971 | 38.0183 | 0.9141 | 0.2966 |
-| GWNET      | 13.9606 | 40.9991 | 0.8797 | 0.2838 |
-| AGCRN      | 14.5831 | 40.7040 | 0.8950 | 0.3013 |
-| GRU        | 15.5306 | 49.6226 | 0.8090 | 0.3063 |
-| DCRNN      | 15.9269 | 49.7386 | 0.7937 | 0.3106 |
-| TGCN       | 16.8589 | 53.0342 | 0.7410 | 0.3259 |
-| LSTM       | 17.7873 | 59.5334 | 0.6509 | 0.3358 |
-
-#### Model performance in Baltimore City
-| Model_name | MAE     | RMSE    | R2     | MAPE   |
-|------------|---------|---------|--------|--------|
-| MultiATGCN | 7.8017  | 15.8327 | 0.8615 | 0.2539 |
-| STGCN      | 8.1321  | 16.3235 | 0.8560 | 0.2606 |
-| ASTGCN     | 8.5615  | 16.9776 | 0.8436 | 0.2722 |
-| MTGNN      | 8.6205  | 17.4740 | 0.8305 | 0.2755 |
-| GMAN       | 8.9269  | 18.3447 | 0.8094 | 0.2881 |
-| GWNET      | 8.9671  | 17.9015 | 0.8022 | 0.2796 |
-| AGCRN      | 9.3033  | 18.8432 | 0.7801 | 0.2851 |
-| GRU        | 9.6586  | 19.6673 | 0.7685 | 0.2978 |
-| TGCN       | 10.4022 | 20.4641 | 0.7001 | 0.3089 |
-| LSTM       | 12.3307 | 24.4955 | 0.5479 | 0.3666 |
 
 #### Multi-view graph learning
 ![Multi-view graph learning](figures/graphs.png "Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning")
