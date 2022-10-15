@@ -6,12 +6,13 @@ from libcity.utils import str2bool, add_general_args
 model_list = ['MultiATGCN']
 # para_list = [[1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1], [2, 2, 1], [2, 3, 1], [3, 3, 1]]
 # para_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'], ['identity', 'none']]
-para_list = [[True, True, True], [True, True, False], [True, False, False], [False, False, False], [False, True, False]]
+para_list = [[True, True, True, True], [True, True, False, False], [False, True, False, False],
+             [False, True, False, True], [False, False, False, False]]
 if __name__ == '__main__':
     for model_name in model_list:
         for para in para_list:
             for random_seed in [0, 10, 100, 1000]:
-                for dataset in ['201901010601_DC_SG_CTractFIPS_Hourly_Single_GP']:
+                for dataset in ['201901010601_BM_SG_CTractFIPS_Hourly_Single_GP']:
                     print(para)
                     parser = argparse.ArgumentParser()
                     parser.add_argument('--task', type=str, default='traffic_state_pred', help='the name of task')
@@ -30,6 +31,7 @@ if __name__ == '__main__':
                     parser.add_argument('--load_dynamic', type=bool, default=para[0], help='load_dynamic')
                     parser.add_argument('--add_time_in_day', type=bool, default=para[1], help='add_time_in_day')
                     parser.add_argument('--add_day_in_week', type=bool, default=para[2], help='add_day_in_week')
+                    parser.add_argument('--add_static', type=bool, default=para[3], help='add_static')
                     # parser.add_argument('--len_closeness', type=int, default=para[0], help='len_closeness')
                     # parser.add_argument('--len_period', type=int, default=para[1], help='len_period')
                     # parser.add_argument('--len_trend', type=int, default=para[2], help='len_trend')

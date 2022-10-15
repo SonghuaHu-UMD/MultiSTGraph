@@ -57,7 +57,7 @@ def calculate_adjacency_matrix_dist(dist_mx, weight_adj_epsilon=0.0):
 
 
 class AGCN(nn.Module):
-    def __init__(self, dim_in, dim_out, cheb_k, embed_dim, adjtype, adpadj):
+    def __init__(self, dim_in, dim_out, cheb_k, embed_dim_node, adjtype, adpadj):
         super(AGCN, self).__init__()
         self.cheb_k = cheb_k
         self.adjtype = adjtype
@@ -68,10 +68,8 @@ class AGCN(nn.Module):
             cheb_ks = 1 + (self.cheb_k - 1) * 3
         else:
             cheb_ks = self.cheb_k
-        self.weights_pool = nn.Parameter(torch.FloatTensor(embed_dim, cheb_ks, dim_in, dim_out))
-        self.bias_pool = nn.Parameter(torch.FloatTensor(embed_dim, dim_out))
-        self.alpha = 3
-        self.k = embed_dim
+        self.weights_pool = nn.Parameter(torch.FloatTensor(embed_dim_node, cheb_ks, dim_in, dim_out))
+        self.bias_pool = nn.Parameter(torch.FloatTensor(embed_dim_node, dim_out))
 
     def forward(self, x, node_emb, node_vec1, node_vec2, support_static):
         node_num = node_emb.shape[0]  # node_emb: E
@@ -109,12 +107,12 @@ class AGCN(nn.Module):
 
 
 class ATGRUCell(nn.Module):
-    def __init__(self, node_num, dim_in, dim_out, cheb_k, embed_dim, adjtype, adpadj):
+    def __init__(self, node_num, dim_in, dim_out, cheb_k, embed_dim_node, adjtype, adpadj):
         super(ATGRUCell, self).__init__()
         self.node_num = node_num
         self.hidden_dim = dim_out
-        self.gate = AGCN(dim_in + dim_out, 2 * dim_out, cheb_k, embed_dim, adjtype, adpadj)
-        self.update = AGCN(dim_in + dim_out, dim_out, cheb_k, embed_dim, adjtype, adpadj)
+        self.gate = AGCN(dim_in + dim_out, 2 * dim_out, cheb_k, embed_dim_node, adjtype, adpadj)
+        self.update = AGCN(dim_in + dim_out, dim_out, cheb_k, embed_dim_node, adjtype, adpadj)
 
     def forward(self, x, state, node_emb, node_vec1, node_vec2, supports_static):
         state = state.to(x.device)
@@ -130,24 +128,56 @@ class ATGRUCell(nn.Module):
         return torch.zeros(batch_size, self.node_num, self.hidden_dim)
 
 
+class GRUCell(nn.Module):
+    def __init__(self, node_num, dim_in, dim_out, cheb_k, embed_dim_node, adjtype, adpadj):
+        super(GRUCell, self).__init__()
+        self.node_num = node_num
+        self.hidden_dim = dim_out
+        self.gate = nn.Linear(dim_in + dim_out, 2 * dim_out)
+        self.update = nn.Linear(dim_in + dim_out, dim_out)
+
+    def forward(self, x, state, node_emb, node_vec1, node_vec2, supports_static):
+        state = state.to(x.device)
+        input_and_state = torch.cat((x, state), dim=-1)
+        z_r = torch.sigmoid(self.gate(input_and_state))
+        z, r = torch.split(z_r, self.hidden_dim, dim=-1)
+        candidate = torch.cat((x, z * state), dim=-1)
+        hc = torch.tanh(self.update(candidate))
+        h = r * state + (1 - r) * hc
+        return h
+
+    def init_hidden_state(self, batch_size):
+        return torch.zeros(batch_size, self.node_num, self.hidden_dim)
+
+
 class ATGRUEncoder(nn.Module):
     def __init__(self, config, feature_final):
         super(ATGRUEncoder, self).__init__()
         self.num_nodes = config['num_nodes']
         self.feature_final = feature_final
         self.hidden_dim = config.get('rnn_units', 64)
-        self.embed_dim = config.get('embed_dim', 10)
+        self.node_specific_off = config.get('node_specific_off', False)
+        self.embed_dim_node = config.get('embed_dim_node', 10)
+        if self.node_specific_off: self.embed_dim_node = 1
         self.num_layers = config.get('num_layers', 2)
         self.adjtype = config.get('adjtype', 'od')
         self.adpadj = config.get('adpadj', 'bidirection')
         self.cheb_k = config.get('cheb_order', 2)
+        self.gcn_off = config.get('gcn_off', False)
         assert self.num_layers >= 1, 'At least one DCRNN layer in the Encoder'
         self.agru_cells = nn.ModuleList()
-        self.agru_cells.append(ATGRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k,
-                                         self.embed_dim, self.adjtype, self.adpadj))
-        for _ in range(1, self.num_layers):
-            self.agru_cells.append(ATGRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k,
-                                             self.embed_dim, self.adjtype, self.adpadj))
+        if self.gcn_off == False:
+            self.agru_cells.append(ATGRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k,
+                                             self.embed_dim_node, self.adjtype, self.adpadj))
+            for _ in range(1, self.num_layers):
+                self.agru_cells.append(ATGRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k,
+                                                 self.embed_dim_node, self.adjtype, self.adpadj))
+        else:
+            self.agru_cells.append(GRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k,
+                                           self.embed_dim_node, self.adjtype, self.adpadj))
+            for _ in range(1, self.num_layers):
+                self.agru_cells.append(GRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k,
+                                               self.embed_dim_node, self.adjtype, self.adpadj))
 
     def forward(self, x, init_state, node_emb, node_vec1, node_vec2, supports):
         assert x.shape[2] == self.num_nodes
@@ -179,10 +209,12 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.output_window = config.get('output_window', 1)
         self.add_time_in_day = config.get('add_time_in_day', False)
         self.add_day_in_week = config.get('add_day_in_week', False)
+        self.node_specific_off = config.get('node_specific_off', False)
         self.batch_size = config.get('batch_size', 64)
         self.device = config.get('device', torch.device('cpu'))
         config['num_nodes'] = self.num_nodes
-        self.embed_dim = config.get('embed_dim', 10)
+        self.embed_dim_node = config.get('embed_dim_node', 10)
+        self.embed_dim_adj = config.get('embed_dim_adj', 10)
 
         # Adjacent matrix: OD
         adj_mx_od = torch.FloatTensor(self.data_feature.get('adj_mx', None))
@@ -235,25 +267,25 @@ class MultiATGCN(AbstractTrafficStateModel):
         if self.static is not None:
             self.static = torch.FloatTensor(self.static).to(self.device)
             self.static_initial_node = nn.Sequential(OrderedDict(
-                [('embd', nn.Linear(min(self.num_nodes, self.embed_dim), self.embed_dim, bias=True)),
+                [('embd', nn.Linear(min(self.num_nodes, self.embed_dim_node), self.embed_dim_node, bias=True)),
                  ('relu1', nn.ReLU())])).to(self.device)
-            u, s, v = torch.pca_lowrank(self.static, q=min(self.num_nodes, self.embed_dim))
+            u, s, v = torch.pca_lowrank(self.static, q=min(self.num_nodes, self.embed_dim_node))
             initemb = torch.matmul(self.static, v)
             initemb = self.static_initial_node(initemb)
             self.node_emb = nn.Parameter(initemb, requires_grad=True)
         else:
-            self.node_emb = nn.Parameter(torch.randn(self.num_nodes, self.embed_dim), requires_grad=True)
+            self.node_emb = nn.Parameter(torch.randn(self.num_nodes, self.embed_dim_node), requires_grad=True)
 
         if self.adj_mx is not None:
             m, p, n = torch.svd(self.adj_mx)
-            initemb1 = torch.mm(m[:, :self.embed_dim], torch.diag(p[:self.embed_dim] ** 0.5))
-            initemb2 = torch.mm(torch.diag(p[:self.embed_dim] ** 0.5), n[:, :self.embed_dim].t())
+            initemb1 = torch.mm(m[:, :self.embed_dim_adj], torch.diag(p[:self.embed_dim_adj] ** 0.5))
+            initemb2 = torch.mm(torch.diag(p[:self.embed_dim_adj] ** 0.5), n[:, :self.embed_dim_adj].t())
             # torch.dist(self.adj_mx, torch.mm(initemb1, initemb2))
             self.node_vec1 = nn.Parameter(initemb1, requires_grad=True)
             self.node_vec2 = nn.Parameter(initemb2, requires_grad=True)
         else:
-            self.node_vec1 = nn.Parameter(torch.randn(self.num_nodes, self.embed_dim), requires_grad=True)
-            self.node_vec2 = nn.Parameter(torch.randn(self.embed_dim, self.num_nodes), requires_grad=True)
+            self.node_vec1 = nn.Parameter(torch.randn(self.num_nodes, self.embed_dim_adj), requires_grad=True)
+            self.node_vec2 = nn.Parameter(torch.randn(self.embed_dim_adj, self.num_nodes), requires_grad=True)
 
         # Dim of different variables: Y; time_in_day 1 ; external: future known 2; future unknown 5
         self.start_dim = config.get('start_dim', 0)
@@ -283,7 +315,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         # Layers
         if self.static is not None:
             self.static_initial_gru = nn.Sequential(
-                OrderedDict([('embd', nn.Linear(min(self.num_nodes, self.embed_dim), self.hidden_dim, bias=True)),
+                OrderedDict([('embd', nn.Linear(min(self.num_nodes, self.embed_dim_node), self.hidden_dim, bias=True)),
                              ('relu1', nn.ReLU())]))
         self.encoder = ATGRUEncoder(config, self.feature_final)
         self.end_conv = nn.Conv2d(self.input_window, self.output_window * self.output_dim,
@@ -297,6 +329,12 @@ class MultiATGCN(AbstractTrafficStateModel):
         self._logger = getLogger()
         self._scaler = self.data_feature.get('scaler')
         self._init_parameters()
+
+        if self.node_specific_off:
+            self.embed_dim_node = 1
+            with torch.no_grad():
+                self.node_emb = nn.Parameter(torch.ones_like(torch.empty(self.num_nodes, self.embed_dim_node)),
+                                             requires_grad=False)
 
     def _init_parameters(self):
         for p in self.parameters():
@@ -351,7 +389,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         # GRU encoder: init based on static variables
         init_state = self.encoder.init_hidden(source.shape[0])
         if self.static is not None:
-            u, s, v = torch.pca_lowrank(self.static, q=min(self.num_nodes, self.embed_dim))
+            u, s, v = torch.pca_lowrank(self.static, q=min(self.num_nodes, self.embed_dim_node))
             static_embedding = self.static_initial_gru(torch.matmul(self.static, v))
             init_state = static_embedding.expand(init_state.shape[0], init_state.shape[1], -1, -1)
         output, output_hidden = self.encoder(output, init_state, self.node_emb, self.node_vec1, self.node_vec2,
@@ -362,13 +400,6 @@ class MultiATGCN(AbstractTrafficStateModel):
         output = self.end_conv(output)  # B, T*C, N, 1
         output = output.squeeze(-1).reshape(-1, self.output_window, self.output_dim, self.num_nodes).permute(0, 1, 3, 2)
 
-        # External enrich
-        if self.external_enrich:
-            exter_vars = batch['X'][:, 0:self.input_window, :, self.end_dim + self.time_index_dim:]
-            exter_vars = torch.permute(exter_vars, (0, 2, 1, 3)).reshape(exter_vars.shape[0], self.num_nodes, -1)
-            exter_enrich = torch.tanh(self.exter_fc(exter_vars).reshape(-1, self.num_nodes, self.output_window,
-                                                                        self.output_dim).permute(0, 2, 1, 3))
-            output = output + exter_enrich
         return output
 
     def calculate_loss(self, batch):

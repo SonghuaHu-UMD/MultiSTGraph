@@ -1,9 +1,12 @@
 {
-  "embed_dim": 20,
+  "embed_dim_node": 20,
+  "embed_dim_adj": 40,
   "rnn_units": 64,
   "num_layers": 2,
   "cheb_order": 2,
   "use_3tu": true,
+  "node_specific_off": false,
+  "gcn_off": true,
   "bidir_adj_mx": false,
   "batch_size": 16,
   "adpadj": "bidirection",
