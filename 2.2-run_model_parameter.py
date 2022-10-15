@@ -4,18 +4,15 @@ from libcity.utils import str2bool, add_general_args
 
 # ['multi', 'bidirection'], ['multi', 'unidirection'], ['multi', 'none']
 model_list = ['MultiATGCN']
-para_list = [[1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1], [3, 3, 1]]
-# para_list = [5, 10, 20, 30, 40, 50]
-# para_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
-#              ['identity', 'none']]
+# para_list = [[1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1], [2, 2, 1], [2, 3, 1], [3, 3, 1]]
+# para_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'], ['identity', 'none']]
+para_list = [[True, True, True], [True, True, False], [True, False, False], [False, False, False], [False, True, False]]
 if __name__ == '__main__':
     for model_name in model_list:
         for para in para_list:
-            for random_seed in [0, 10, 100]:
-                for dataset in ['201901010601_DC_SG_CTractFIPS_Hourly_Single_GP',
-                                '202001010601_DC_SG_CTractFIPS_Hourly_Single_GP',
-                                '201901010601_BM_SG_CTractFIPS_Hourly_Single_GP',
-                                '202001010601_BM_SG_CTractFIPS_Hourly_Single_GP']:
+            for random_seed in [0, 10, 100, 1000]:
+                for dataset in ['201901010601_DC_SG_CTractFIPS_Hourly_Single_GP']:
+                    print(para)
                     parser = argparse.ArgumentParser()
                     parser.add_argument('--task', type=str, default='traffic_state_pred', help='the name of task')
                     parser.add_argument('--model', type=str, default=model_name, help='the name of model')
@@ -30,10 +27,12 @@ if __name__ == '__main__':
                     parser.add_argument('--seed', type=int, default=random_seed, help='random seed')
                     parser.add_argument('--start_dim', type=int, default=0, help='start_dim')
                     parser.add_argument('--end_dim', type=int, default=1, help='end_dim')
-                    # parser.add_argument('--embed_dim', type=int, default=para, help='adjtype')
-                    parser.add_argument('--len_closeness', type=int, default=para[0], help='len_closeness')
-                    parser.add_argument('--len_period', type=int, default=para[1], help='len_period')
-                    parser.add_argument('--len_trend', type=int, default=para[2], help='len_trend')
+                    parser.add_argument('--load_dynamic', type=bool, default=para[0], help='load_dynamic')
+                    parser.add_argument('--add_time_in_day', type=bool, default=para[1], help='add_time_in_day')
+                    parser.add_argument('--add_day_in_week', type=bool, default=para[2], help='add_day_in_week')
+                    # parser.add_argument('--len_closeness', type=int, default=para[0], help='len_closeness')
+                    # parser.add_argument('--len_period', type=int, default=para[1], help='len_period')
+                    # parser.add_argument('--len_trend', type=int, default=para[2], help='len_trend')
                     add_general_args(parser)
                     # args = parser.parse_args()
                     args, unknown = parser.parse_known_args()

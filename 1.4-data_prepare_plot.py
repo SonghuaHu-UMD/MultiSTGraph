@@ -54,7 +54,7 @@ def adj_wide2long(learned_graph, Geo_Info, colname):
 results_path = r'D:\\ST_Graph\\Data\\'
 geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
 t_s, t_e = datetime.datetime(2019, 1, 1), datetime.datetime(2019, 6, 1)  # datetime.datetime(2019, 7, 1)
-area_c, sunit = '_BM', 'CTractFIPS'
+area_c, sunit = '_DC', 'CTractFIPS'
 time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_days = (t_e - t_s).days
 train_ratio = 0.7

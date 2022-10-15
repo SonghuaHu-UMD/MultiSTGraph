@@ -92,6 +92,7 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     Dyna.to_csv(results_path + r'Lib_Data\%s\%s.dyna' % (f_na, f_na), index=0)
     Dyna_s = CTS_Hourly[['index', 'type', 'Time', sunit, 'All']]
     Dyna_s.columns = ['dyna_id', 'type', 'time', 'entity_id', 'Visits']
+    # Dyna_s.describe().to_csv('temp_dc_des.csv')
     print(Dyna_s.isnull().sum())
     Dyna_s[['dyna_id', 'type', 'time', 'entity_id', 'Visits']].to_csv(
         results_path + r'Lib_Data\%s\%s.dyna' % (f_nas, f_nas), index=0)
@@ -174,7 +175,7 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     # Ext: weather
     weather = pd.read_pickle(r'D:\ST_Graph\Results\weather_2019_bmc.pkl')
     weather['time'] = weather['DATE'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-    wlist = ['wind', 'temp', 'rain', 'snow', 'vis']
+    wlist = ['temp', 'rain', 'snow']
     weather[wlist] = (weather[wlist] - weather[wlist].mean()) / weather[wlist].std()
     CTS_Hourly_ext = CTS_Hourly_ext.merge(weather[wlist + ['time']], on=['time'])
 
@@ -229,8 +230,8 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     config['dyna']['including_types'] = ['state']
     config['dyna']['state'] = {'entity_id': 'geo_id', 'Education': 'num', 'Others': 'num', 'Recreation': 'num',
                                'Residential': 'num', 'Restaurant': 'num', 'Retail': 'num', 'Service': 'num'}
-    config['ext'] = {'ext_id': 'num', 'time': 'other', 'holiday': 'num', 'weekend': 'num', 'wind': 'num', 'temp': 'num',
-                     'rain': 'num', 'snow': 'num', 'vis': 'num', 'New_cases': 'num'}
+    config['ext'] = {'ext_id': 'num', 'time': 'other', 'holiday': 'num', 'weekend': 'num', 'temp': 'num',
+                     'rain': 'num', 'snow': 'num', 'New_cases': 'num'}
     config['info'] = dict()
     config['info']['data_col'] = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']
     config['info']['weight_col'] = 'link_weight'
