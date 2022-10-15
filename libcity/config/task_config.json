@@ -152,23 +152,8 @@
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     },
-    "Seq2Seq": {
-      "dataset_class": "MTHDataset",
-      "executor": "TrafficStateExecutor",
-      "evaluator": "TrafficStateEvaluator"
-    },
     "GMAN": {
       "dataset_class": "GMANDataset",
-      "executor": "TrafficStateExecutor",
-      "evaluator": "TrafficStateEvaluator"
-    },
-    "STSGCN": {
-      "dataset_class": "MTHDataset",
-      "executor": "TrafficStateExecutor",
-      "evaluator": "TrafficStateEvaluator"
-    },
-    "STTN": {
-      "dataset_class": "MTHDataset",
       "executor": "TrafficStateExecutor",
       "evaluator": "TrafficStateEvaluator"
     },
