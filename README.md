@@ -88,8 +88,8 @@ python run_model_parameters.py --task traffic_state_pred --dataset 201901010601_
 
 If you are using Google Colab, we also provide a notebook named `Colab_run_model.ipynb` to execute in Colab environment.
 
-**After running the model, you should run the code "result_convert.py" to inversely transform the prediction to recover its scale, since we employ a census tract-based normalization. 
-Make sure to clean the `./libcity/cache` fold before run a new round of experiment.**
+:exclamation: After running the model, you should run the code "result_convert.py" to inversely transform the prediction to recover its scale, since we employ a census tract-based normalization. 
+Make sure to clean the `./libcity/cache` fold before run a new round of experiment.
 
 ### Results
 #### Model performance in DC area
