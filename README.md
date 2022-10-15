@@ -2,8 +2,8 @@
 
 ![Multi-ATGCN](figures/framework.png "Model Architecture")
 
-This is a PyTorch implementation of Multi-ATGCN in the following working paper: \
-Songhua Hu, ... ,Paul Schonfled, 2022, Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting
+This is a original PyTorch implementation of Multi-ATGCN in the following working paper: \
+**Songhua Hu, ... ,Paul Schonfled, 2022, Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
 
 ## Environment
 We use the torch == 1.10.2 and Python 3.6.11 for implementation.
@@ -36,6 +36,7 @@ Data are retrieved from [SafeGraph](https://www.safegraph.com/) using the Weekly
 If you want to extract dataset in other areas from the raw dataset. Run the following codes at  `./data_prepare`.
 
 ## Model Training
+The code for Multi-ATGCN is located at `./libcity/model/`
 The script run_model.py is used for training and evaluating the main model:
 ```bash
 # DC
