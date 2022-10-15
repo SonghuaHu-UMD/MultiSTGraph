@@ -71,7 +71,6 @@ def transfer_gp_data(filenames, ct_visit_mstd):
 
 
 # Read metrics of multiple models
-# ['201901010601_DC', '202001010601_DC', '201901010601_BM', '202001010601_BM']
 time_sps, n_steps, nfold = ['201901010601_BM', '201901010601_DC'], [3, 6, 12, 24], 'Final'
 for time_sp in time_sps:
     for n_step in n_steps:
@@ -96,9 +95,11 @@ for time_sp in time_sps:
                 r"D:\ST_Graph\Results\M_%s_truth_%s_steps_%s_%s.csv" % (nfold, n_step, sunit, time_sp))
 
 # Read metrics of multiple parameters
-time_sps = ['202001010601_DC']
+time_sps = ['201901010601_DC']
 # para_list,n_repeat,para_name = ['od-bidirection', 'od-unidirection', 'od', 'dist', 'cosine', 'identity'],5, 'Graphs'
-para_list, n_repeat, para_name = [5, 10, 20, 30, 40, 50], 3, 'node_ebed'
+para_list = [''.join(str(x)) for x in [[True, True, True], [True, True, False], [True, False, False],
+                                       [False, False, False], [False, True, False]]]
+n_repeat, para_name, n_steps = 4, 'P_Exter', 24
 for time_sp in time_sps:
     # time_sp = '202001010601_DC'
     sunit = 'CTractFIPS'

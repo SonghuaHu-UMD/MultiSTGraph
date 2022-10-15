@@ -9,12 +9,9 @@
   "adpadj": "bidirection",
   "adjtype": "od",
   "scaler": "standard",
-  "add_static": true,
+  "add_static": false,
   "external_enrich": false,
   "ext_scaler": "none",
-  "add_time_in_day": true,
-  "add_day_in_week": false,
-  "max_epoch": 100,
   "learner": "adam",
   "learning_rate": 0.003,
   "lr_decay": true,
@@ -27,7 +24,5 @@
     30
   ],
   "clip_grad_norm": true,
-  "max_grad_norm": 5,
-  "use_early_stop": true,
-  "patience": 50
+  "max_grad_norm": 5
 }
