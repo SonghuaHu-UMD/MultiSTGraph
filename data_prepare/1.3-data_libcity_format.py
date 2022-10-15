@@ -4,7 +4,6 @@
 # W/O POI types
 # Different spatial units: county subdivision, census track, census block group
 # Different spatial coverage: BM/DC
-# Different temporal coverage: 20190101-0601, 20200101-0601
 ####################################
 import pandas as pd
 import numpy as np

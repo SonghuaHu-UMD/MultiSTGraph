@@ -1,7 +1,6 @@
 ########################################################################
 # Prepare population inflow (hourly) in Baltimore and DC area from SafeGraph.
 # Prepare OD flow (weekly) for graph construction.
-# Date cover: 2019 (Pre-pandemic), 2020 (Post-pandemic)
 ########################################################################
 import pandas as pd
 import matplotlib.pyplot as plt
