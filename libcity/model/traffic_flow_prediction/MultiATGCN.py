@@ -210,6 +210,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.add_time_in_day = config.get('add_time_in_day', False)
         self.add_day_in_week = config.get('add_day_in_week', False)
         self.node_specific_off = config.get('node_specific_off', False)
+        self.fnn_off = config.get('fnn_off', False)
         self.batch_size = config.get('batch_size', 64)
         self.device = config.get('device', torch.device('cpu'))
         config['num_nodes'] = self.num_nodes
@@ -219,6 +220,7 @@ class MultiATGCN(AbstractTrafficStateModel):
         # Adjacent matrix: OD
         adj_mx_od = torch.FloatTensor(self.data_feature.get('adj_mx', None))
         adj_mx_od = torch.div(adj_mx_od, torch.diag(adj_mx_od, 0))
+        adj_mx_od[adj_mx_od > 1] = 1
         self.adj_mx_od = adj_mx_od
 
         # Adjacent matrix: Semantic similarity
@@ -287,11 +289,10 @@ class MultiATGCN(AbstractTrafficStateModel):
             self.node_vec1 = nn.Parameter(torch.randn(self.num_nodes, self.embed_dim_adj), requires_grad=True)
             self.node_vec2 = nn.Parameter(torch.randn(self.embed_dim_adj, self.num_nodes), requires_grad=True)
 
-        # Dim of different variables: Y; time_in_day 1 ; external: future known 2; future unknown 5
+        # Dim of different variables
         self.start_dim = config.get('start_dim', 0)
         self.end_dim = config.get('end_dim', 1)
         self.load_dynamic = config.get('load_dynamic', False)
-        self.external_enrich = config.get('external_enrich', False)
         if self.add_time_in_day and self.add_day_in_week:
             self.time_index_dim = 8
         elif self.add_time_in_day and not self.add_day_in_week:
@@ -320,11 +321,9 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.encoder = ATGRUEncoder(config, self.feature_final)
         self.end_conv = nn.Conv2d(self.input_window, self.output_window * self.output_dim,
                                   kernel_size=(1, self.hidden_dim), bias=True)
-        if self.load_dynamic:
-            self.exter_fc = nn.Sequential(OrderedDict([
-                ('embd', nn.Linear((self.ext_dim - self.time_index_dim) * self.input_window, 64, bias=True)),
-                ('relu1', nn.ReLU()), ('linear', nn.Linear(64, self.output_window * self.output_dim,
-                                                           bias=True)), ('relu1', nn.ReLU())]))
+        if self.fnn_off:
+            self.end_conv = nn.Conv2d(1, self.output_window * self.output_dim, kernel_size=(1, self.hidden_dim),
+                                      bias=True)
 
         self._logger = getLogger()
         self._scaler = self.data_feature.get('scaler')
@@ -394,6 +393,8 @@ class MultiATGCN(AbstractTrafficStateModel):
             init_state = static_embedding.expand(init_state.shape[0], init_state.shape[1], -1, -1)
         output, output_hidden = self.encoder(output, init_state, self.node_emb, self.node_vec1, self.node_vec2,
                                              self.supports)
+
+        if self.fnn_off: output = output[:, -1:, :, :]
 
         # CNN-based output
         output = F.dropout(output, p=0.1, training=self.training)

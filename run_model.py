@@ -11,7 +11,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument('--task', type=str, default='traffic_state_pred', help='the name of task')
         parser.add_argument('--model', type=str, default=model_name, help='the name of model')
-        parser.add_argument('--dataset', type=str, default='201901010601_BM_SG_CTractFIPS_Hourly_Single_GP',
+        parser.add_argument('--dataset', type=str, default='201901010601_DC_SG_CTractFIPS_Hourly_Single_GP',
                             help='the name of dataset')
         parser.add_argument('--config_file', type=str, default='config_user', help='the file name of config file')
         parser.add_argument('--saved_model', type=str2bool, default=True, help='whether save the trained model')

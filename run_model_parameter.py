@@ -2,36 +2,35 @@ import argparse
 from libcity.pipeline import run_model
 from libcity.utils import str2bool, add_general_args
 
-# ['multi', 'bidirection'], ['multi', 'unidirection'], ['multi', 'none']
 model_list = ['MultiATGCN']
 # para_list = [[1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1], [2, 2, 1], [2, 3, 1], [3, 3, 1]]
 # para_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'], ['identity', 'none']]
-para_list = [[True, True, True, True], [True, True, False, False], [False, True, False, False],
-             [False, True, False, True], [False, False, False, False]]
+# para_list = [[True, True, True, True], [True, True, False, False], [False, True, False, False], [False, True, False, True], [False, False, False, False]]
+para_list = [True, False]
 if __name__ == '__main__':
     for model_name in model_list:
         for para in para_list:
             for random_seed in [0, 10, 100, 1000]:
-                for dataset in ['201901010601_BM_SG_CTractFIPS_Hourly_Single_GP']:
+                for dataset in ['201901010601_DC_SG_CTractFIPS_Hourly_Single_GP']:
                     print(para)
                     parser = argparse.ArgumentParser()
                     parser.add_argument('--task', type=str, default='traffic_state_pred', help='the name of task')
                     parser.add_argument('--model', type=str, default=model_name, help='the name of model')
                     parser.add_argument('--dataset', type=str, default=dataset, help='the name of dataset')
-                    parser.add_argument('--config_file', type=str, default='config_user',
-                                        help='the file name of config file')
-                    parser.add_argument('--saved_model', type=str2bool, default=True,
-                                        help='whether save the trained model')
+                    parser.add_argument('--config_file', type=str, default='config_user', help='config file')
+                    parser.add_argument('--saved_model', type=str2bool, default=True, help='saved_model')
                     parser.add_argument('--train', type=str2bool, default=True,
                                         help='whether re-train if the model is trained')
                     parser.add_argument('--exp_id', type=str, default=None, help='id of experiment')
                     parser.add_argument('--seed', type=int, default=random_seed, help='random seed')
                     parser.add_argument('--start_dim', type=int, default=0, help='start_dim')
                     parser.add_argument('--end_dim', type=int, default=1, help='end_dim')
-                    parser.add_argument('--load_dynamic', type=bool, default=para[0], help='load_dynamic')
-                    parser.add_argument('--add_time_in_day', type=bool, default=para[1], help='add_time_in_day')
-                    parser.add_argument('--add_day_in_week', type=bool, default=para[2], help='add_day_in_week')
-                    parser.add_argument('--add_static', type=bool, default=para[3], help='add_static')
+                    # parser.add_argument('--node_specific_off', type=bool, default=para, help='node_specific_off')
+                    parser.add_argument('--gcn_off', type=bool, default=para, help='gcn_off')
+                    # parser.add_argument('--load_dynamic', type=bool, default=para[0], help='load_dynamic')
+                    # parser.add_argument('--add_time_in_day', type=bool, default=para[1], help='add_time_in_day')
+                    # parser.add_argument('--add_day_in_week', type=bool, default=para[2], help='add_day_in_week')
+                    # parser.add_argument('--add_static', type=bool, default=para[3], help='add_static')
                     # parser.add_argument('--len_closeness', type=int, default=para[0], help='len_closeness')
                     # parser.add_argument('--len_period', type=int, default=para[1], help='len_period')
                     # parser.add_argument('--len_trend', type=int, default=para[2], help='len_trend')
