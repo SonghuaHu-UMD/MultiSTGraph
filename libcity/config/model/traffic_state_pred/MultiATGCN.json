@@ -1,6 +1,6 @@
 {
   "embed_dim_node": 20,
-  "embed_dim_adj": 40,
+  "embed_dim_adj": 20,
   "rnn_units": 64,
   "num_layers": 2,
   "cheb_order": 2,
@@ -11,7 +11,7 @@
   "bidir_adj_mx": false,
   "batch_size": 16,
   "adpadj": "bidirection",
-  "adjtype": "od",
+  "adjtype": "multi",
   "scaler": "standard",
   "add_static": false,
   "ext_scaler": "none",

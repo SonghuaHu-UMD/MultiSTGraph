@@ -68,8 +68,10 @@ class AGCN(nn.Module):
             cheb_ks = 1 + (self.cheb_k - 1) * 3
         else:
             cheb_ks = self.cheb_k
+        self.weights_g = nn.Parameter(torch.FloatTensor(cheb_ks, 1, 1))
         self.weights_pool = nn.Parameter(torch.FloatTensor(embed_dim_node, cheb_ks, dim_in, dim_out))
         self.bias_pool = nn.Parameter(torch.FloatTensor(embed_dim_node, dim_out))
+        # self.mlp = nn.Linear(cheb_ks, cheb_ks)
 
     def forward(self, x, node_emb, node_vec1, node_vec2, support_static):
         node_num = node_emb.shape[0]  # node_emb: E
@@ -97,7 +99,10 @@ class AGCN(nn.Module):
                 support_set.append(torch.matmul(2 * support_set[1], support_set[-1]) - support_set[-2])
             out.extend(support_set[1:])
         supports = torch.stack(out, dim=0).to(x.device)
+        supports = torch.mul(F.softmax(self.weights_g, dim=-1), supports)
+        # supports = torch.stack(out, dim=-1).to(x.device)
         # supports = self.mlp(supports).view(1, node_num, node_num)
+        # supports = torch.concat((I_mx.unsqueeze(0), supports), dim=0)
         weights = torch.einsum('nd,dkio->nkio', node_emb, self.weights_pool)
         bias = torch.matmul(node_emb, self.bias_pool)
         x_g = torch.einsum("knm,bmc->bknc", supports, x)

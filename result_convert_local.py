@@ -112,11 +112,11 @@ time_sps = ['201901010601_DC']
 # para_list,n_repeat,para_name = ['od-bidirection', 'od-unidirection', 'od', 'dist', 'cosine', 'identity'],5, 'Graphs'
 # para_list = [''.join(str(x)) for x in [[True, True, True, True], [True, True, False, False], [False, True, False, False],
 #              [False, True, False, True], [False, False, False, False]]]
-para_list = [''.join(str(x)) for x in
-             [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
-              ['identity', 'none'], ['multi', 'bidirection']]]
-# para_list = [True, False]
-n_repeat, para_name, n_steps = 4, 'P_graph', 24
+# para_list = [''.join(str(x)) for x in
+#              [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
+#               ['identity', 'none'], ['multi', 'bidirection']]]
+para_list = [True, False]
+n_repeat, para_name, n_steps = 4, 'P_gcn', 24
 for time_sp in time_sps:
     # time_sp = '202001010601_DC'
     sunit = 'CTractFIPS'

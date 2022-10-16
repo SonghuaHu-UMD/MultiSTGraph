@@ -53,7 +53,8 @@ The data statistics of two datasets are as followed:
 For easy comparison among different models, the code and data formats follow the framework proposed by [LibCity](https://github.com/LibCity/Bigscity-LibCity):
 * The code for Multi-ATGCN is located at `./libcity/model/traffic_flow_prediction/MultiATGCN.py`.
 * The code for dataset preprocessing is located at `./libcity/data/dataset/dataset_subclass/mth_dataset.py`.
-* The code for other baselines is located at `./libcity/model/`.
+
+[//]: # (* The code for other baselines is located at `./libcity/model/`.)
 
 You can also directly copy the data and our model to the LibCity environment and run. 
 However, I suggest you directly using the repository here since some changes are made compared with the original LibCity:
@@ -72,14 +73,21 @@ python run_model.py --task traffic_state_pred --dataset 201901010601_DC_SG_CTrac
 # Baltimore
 python run_model.py --task traffic_state_pred --dataset 201901010601_BM_SG_CTractFIPS_Hourly_Single_GP
 ```
-The script `run_model_baselines.py` is used for training and evaluating other baselines including 
-TGCN, DCRNN, AGCRN, ASTGCN, STGCN, MTGNN, GWNET, GMAN, GRU, and LSTM. 
-See the reference list here: [Baselines](https://bigscity-libcity-docs.readthedocs.io/en/latest/user_guide/model.html). 
 
-```bash
-# DC
-python run_model_baselines.py --task traffic_state_pred --dataset 201901010601_DC_SG_CTractFIPS_Hourly_Single_GP
-```
+[//]: # (The script `run_model_baselines.py` is used for training and evaluating other baselines including )
+
+[//]: # (TGCN, DCRNN, AGCRN, ASTGCN, STGCN, MTGNN, GWNET, GMAN, GRU, and LSTM. )
+
+[//]: # (See the reference list here: [Baselines]&#40;https://bigscity-libcity-docs.readthedocs.io/en/latest/user_guide/model.html&#41;. )
+
+[//]: # ()
+[//]: # (```bash)
+
+[//]: # (# DC)
+
+[//]: # (python run_model_baselines.py --task traffic_state_pred --dataset 201901010601_DC_SG_CTractFIPS_Hourly_Single_GP)
+
+[//]: # (```)
 
 The script `run_model_parameters.py` is used for parameter study. Change the parameter you are interested and run:
 
