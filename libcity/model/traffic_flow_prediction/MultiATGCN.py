@@ -99,10 +99,8 @@ class AGCN(nn.Module):
                 support_set.append(torch.matmul(2 * support_set[1], support_set[-1]) - support_set[-2])
             out.extend(support_set[1:])
         supports = torch.stack(out, dim=0).to(x.device)
-        supports = torch.mul(F.softmax(self.weights_g, dim=-1), supports)
-        # supports = torch.stack(out, dim=-1).to(x.device)
-        # supports = self.mlp(supports).view(1, node_num, node_num)
-        # supports = torch.concat((I_mx.unsqueeze(0), supports), dim=0)
+        if self.adjtype == 'multi':
+            supports = torch.mul(F.softmax(self.weights_g, dim=0), supports)
         weights = torch.einsum('nd,dkio->nkio', node_emb, self.weights_pool)
         bias = torch.matmul(node_emb, self.bias_pool)
         x_g = torch.einsum("knm,bmc->bknc", supports, x)
@@ -163,6 +161,8 @@ class ATGRUEncoder(nn.Module):
         self.hidden_dim = config.get('rnn_units', 64)
         self.node_specific_off = config.get('node_specific_off', False)
         self.embed_dim_node = config.get('embed_dim_node', 10)
+        self.input_window = config.get('input_window', 1)
+        self.device = config.get('device', torch.device('cpu'))
         if self.node_specific_off: self.embed_dim_node = 1
         self.num_layers = config.get('num_layers', 2)
         self.adjtype = config.get('adjtype', 'od')
@@ -171,12 +171,19 @@ class ATGRUEncoder(nn.Module):
         self.gcn_off = config.get('gcn_off', False)
         assert self.num_layers >= 1, 'At least one DCRNN layer in the Encoder'
         self.agru_cells = nn.ModuleList()
+        self.res_cells = nn.ModuleList()
+        self.weights_gru = nn.Parameter(torch.FloatTensor(self.num_layers, self.input_window))
+        # self.weights_gru = nn.Parameter(torch.randn(self.num_layers), requires_grad=True)
         if self.gcn_off == False:
             self.agru_cells.append(ATGRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k,
                                              self.embed_dim_node, self.adjtype, self.adpadj))
+            self.res_cells.append(GRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k,
+                                          self.embed_dim_node, self.adjtype, self.adpadj))
             for _ in range(1, self.num_layers):
                 self.agru_cells.append(ATGRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k,
                                                  self.embed_dim_node, self.adjtype, self.adpadj))
+                self.res_cells.append(GRUCell(self.num_nodes, self.hidden_dim, self.hidden_dim, self.cheb_k,
+                                              self.embed_dim_node, self.adjtype, self.adpadj))
         else:
             self.agru_cells.append(GRUCell(self.num_nodes, self.feature_final, self.hidden_dim, self.cheb_k,
                                            self.embed_dim_node, self.adjtype, self.adpadj))
@@ -189,11 +196,16 @@ class ATGRUEncoder(nn.Module):
         seq_length = x.shape[1]
         current_inputs = x
         output_hidden = []
+        weights_gru = torch.sigmoid(self.weights_gru)
         for i in range(self.num_layers):
             state = init_state[i]
             inner_states = []
             for t in range(seq_length):
                 state = self.agru_cells[i](current_inputs[:, t, :, :], state, node_emb, node_vec1, node_vec2, supports)
+                if self.gcn_off == False:
+                    res_con = self.res_cells[i](current_inputs[:, t, :, :], state, node_emb, node_vec1,
+                                                node_vec2, supports)
+                    state = weights_gru[i][t] * state + (1 - weights_gru[i][t]) * res_con
                 inner_states.append(state)
             output_hidden.append(state)
             current_inputs = torch.stack(inner_states, dim=1)
@@ -316,7 +328,8 @@ class MultiATGCN(AbstractTrafficStateModel):
         self.len_ts = int((self.len_period + self.len_trend + self.len_closeness) / 24)
         self.weight_ts = nn.ParameterList(
             [nn.Parameter(torch.FloatTensor(1, 24, self.num_nodes, self.output_dim)) for i in range(self.len_ts)])
-        self.weight_tsg = nn.ParameterList([nn.Parameter(torch.FloatTensor(1)) for i in range(self.len_ts)])
+        # self.weight_tsg = nn.ParameterList([nn.Parameter(torch.FloatTensor(1)) for i in range(self.len_ts)])
+        self.weight_tsg = nn.Parameter(torch.FloatTensor(self.len_ts))
 
         # Layers
         if self.static is not None:
@@ -354,14 +367,14 @@ class MultiATGCN(AbstractTrafficStateModel):
         # three temporal unit
         output = 0.0
         ccount = 0
+        weight_tsg = F.softmax(self.weight_tsg, dim=0)
         if self.len_closeness > 0:
             begin_index = 0
             for kk in range(0, int(self.len_closeness / 24)):
                 end_index = begin_index + 24
                 output_hours = source[:, begin_index:end_index, :, :]
                 begin_index = end_index
-                output += (torch.exp(self.weight_tsg[ccount]) / torch.exp(sum(self.weight_tsg[0:]))) * output_hours * \
-                          self.weight_ts[ccount]
+                output += weight_tsg[ccount] * output_hours * self.weight_ts[ccount]
                 ccount += 1
         if self.len_period > 0 and self.output_window >= 6:
             begin_index = self.len_closeness
@@ -369,16 +382,14 @@ class MultiATGCN(AbstractTrafficStateModel):
                 end_index = begin_index + 24
                 output_days = source[:, begin_index:end_index, :, :]
                 begin_index = end_index
-                output += (torch.exp(self.weight_tsg[ccount]) / torch.exp(sum(self.weight_tsg[0:]))) * output_days * \
-                          self.weight_ts[ccount]
+                output += weight_tsg[ccount] * output_days * self.weight_ts[ccount]
                 ccount += 1
         if self.len_trend > 0 and self.output_window >= 6:
             begin_index = self.len_closeness + self.len_period
             for kk in range(0, int(self.len_trend / 24)):
                 end_index = begin_index + 24
                 output_weeks = source[:, begin_index:end_index, :, :]
-                output += (torch.exp(self.weight_tsg[ccount]) / torch.exp(sum(self.weight_tsg[0:]))) * output_weeks * \
-                          self.weight_ts[ccount]
+                output += weight_tsg[ccount] * output_weeks * self.weight_ts[ccount]
                 ccount += 1
 
         # add back the time_index now: 1

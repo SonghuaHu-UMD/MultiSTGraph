@@ -108,15 +108,17 @@ for time_sp in time_sps:
             all_results_avg_t.to_csv(r".\results\M_%s_truth_%s_steps_%s_%s.csv" % (nfold, n_step, sunit, time_sp))
 
 # Read metrics of multiple parameters
-time_sps = ['201901010601_DC']
 # para_list,n_repeat,para_name = ['od-bidirection', 'od-unidirection', 'od', 'dist', 'cosine', 'identity'],5, 'Graphs'
 # para_list = [''.join(str(x)) for x in [[True, True, True, True], [True, True, False, False], [False, True, False, False],
 #              [False, True, False, True], [False, False, False, False]]]
-# para_list = [''.join(str(x)) for x in
-#              [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
-#               ['identity', 'none'], ['multi', 'bidirection']]]
-para_list = [True, False]
-n_repeat, para_name, n_steps = 4, 'P_gcn', 24
+para_list = [''.join(str(x)) for x in
+             [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
+              ['identity', 'none']]]# , ['multi', 'bidirection']
+# para_list = ['-'.join(str(x)) for x in
+#              [[0, 0, 1], [0, 1, 1], [1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1], [2, 2, 1]]]
+# para_list = [True, False]
+time_sps = ['201901010601_BM']
+n_repeat, para_name, n_steps = 4, 'P_graph_new', 24
 for time_sp in time_sps:
     # time_sp = '202001010601_DC'
     sunit = 'CTractFIPS'
