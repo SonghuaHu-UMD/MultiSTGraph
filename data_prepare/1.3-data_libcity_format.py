@@ -20,7 +20,7 @@ results_path = r'D:\\ST_Graph\\Data\\'
 geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
 t_s = datetime.datetime(2019, 1, 1)  # datetime.datetime(2019, 3, 1)
 t_e = datetime.datetime(2019, 6, 1)  # datetime.datetime(2019, 7, 1)
-area_c = '_DC'
+area_c = '_BM'
 time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_days = (t_e - t_s).days
 train_ratio = 0.7
@@ -103,6 +103,15 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     ct_visit_std.columns = [sunit] + [var + '_std' for var in list(ct_visit_std.columns[1:])]
     ct_visit_mstd = ct_visit_mean.merge(ct_visit_std, on=sunit)  # some zeros exist
     ct_visit_mstd.to_pickle(r'D:\ST_Graph\Results\%s_%s_visit_mstd.pkl' % (sunit, time_sp))
+
+    visit_mstd_s = ct_visit_mstd[[sunit, 'All_m', 'All_std']]
+    visit_mstd_s.columns = ['geo_id', 'All_m', 'All_std']
+    visit_mstd_s.to_csv(results_path + r'Lib_Data\%s\%s.gbst' % (f_gps, f_gps), index=0)
+
+    visit_mstd_s = ct_visit_mstd.copy()
+    visit_mstd_s.rename({sunit: 'geo_id'}, inplace=True, axis=1)
+    visit_mstd_s.to_csv(results_path + r'Lib_Data\%s\%s.gbst' % (f_gp, f_gp), index=0)
+
     CTS_Hourly = CTS_Hourly.merge(ct_visit_mstd, on=sunit)
     # for kk in POI_Type + ['All']: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly[kk + '_std']
     for kk in POI_Type: CTS_Hourly[kk] = (CTS_Hourly[kk] - CTS_Hourly[kk + '_m']) / CTS_Hourly['All_std']

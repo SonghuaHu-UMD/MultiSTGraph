@@ -9,6 +9,9 @@ from libcity.executor.abstract_executor import AbstractExecutor
 from libcity.utils import get_evaluator, ensure_dir
 from libcity.model import loss
 from functools import partial
+import pandas as pd
+import datetime
+from sklearn.metrics import r2_score, explained_variance_score
 
 
 class TrafficStateExecutor(AbstractExecutor):
@@ -22,6 +25,7 @@ class TrafficStateExecutor(AbstractExecutor):
         self.output_window = config.get('output_window', 1)
         self.start_dim = config.get('start_dim', 0)
         self.end_dim = config.get('end_dim', 1)
+        self.groupstd = config.get('groupstd', False)
 
         self.cache_dir = './libcity/cache/{}/model_cache'.format(self.exp_id)
         self.evaluate_res_dir = './libcity/cache/{}/evaluate_cache'.format(self.exp_id)
@@ -277,13 +281,46 @@ class TrafficStateExecutor(AbstractExecutor):
             y_preds = np.concatenate(y_preds, axis=0)
             y_truths = np.concatenate(y_truths, axis=0)  # concatenate on batch
             outputs = {'prediction': y_preds, 'truth': y_truths}
-            filename = \
-                time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(time.time())) + '_' \
-                + self.config['model'] + '_' + self.config['dataset'] + '_predictions.npz'
+            filename = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(time.time())) + '_' \
+                       + self.config['model'] + '_' + self.config['dataset'] + '_predictions.npz'
             np.savez_compressed(os.path.join(self.evaluate_res_dir, filename), **outputs)
             self.evaluator.clear()
             self.evaluator.collect({'y_true': torch.tensor(y_truths), 'y_pred': torch.tensor(y_preds)})
             test_result = self.evaluator.save_result(self.evaluate_res_dir)
+
+            # Re-transform the data
+            if self.groupstd:
+                sh = y_preds.shape
+                ct_visit_mstd = pd.read_csv(
+                    r'.\raw_data\%s\%s.gbst' % (self.config['dataset'], self.config['dataset'])).sort_values(
+                    by='geo_id').reset_index(drop=True)
+                ct_ma = np.tile(ct_visit_mstd[['All_m']].values, (sh[0], sh[1], 1, sh[3]))
+                ct_sa = np.tile(ct_visit_mstd[['All_std']].values, (sh[0], sh[1], 1, sh[3]))
+                ct_id = np.tile(ct_visit_mstd[['geo_id']].values, (sh[0], sh[1], 1, sh[3]))
+                ahead_step = np.tile(np.expand_dims(np.array(range(0, sh[1])), axis=(1, 2)), (sh[0], 1, sh[2], sh[3]))
+                P_R = pd.DataFrame(
+                    {'prediction': y_preds.flatten(), 'truth': y_truths.flatten(), 'All_m': ct_ma.flatten(),
+                     'All_std': ct_sa.flatten(), 'geo_id': ct_id.flatten(), 'ahead_step': ahead_step.flatten()})
+                P_R['prediction_t'] = P_R['prediction'] * P_R['All_std'] + P_R['All_m']
+                P_R['truth_t'] = P_R['truth'] * P_R['All_std'] + P_R['All_m']
+                filename_pr = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(time.time())) + '_' \
+                              + self.config['model'] + '_' + self.config['dataset'] + '_predictions_trans.pkl'
+                P_R.to_pickle(os.path.join(self.evaluate_res_dir, filename_pr))
+
+                P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
+                m_m = []
+                s_small = 10
+                for rr in range(0, sh[1]):
+                    pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
+                    tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
+                    m_m.append([self.config['model'], rr, datetime.datetime.now(), loss.masked_mae_np(pr, tr),
+                                loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr), r2_score(pr, tr),
+                                explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+                m_md = pd.DataFrame(m_m)
+                m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
+                m_md.to_csv(os.path.join(self.evaluate_res_dir,
+                                         time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(time.time())) + '_' +
+                                         self.config['model'] + '_' + self.config['dataset'] + '_trans.csv'))
             return test_result
 
     def train(self, train_dataloader, eval_dataloader):

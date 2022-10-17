@@ -23,14 +23,15 @@ The group-based normalized crowd flow data files for Washington, D.C. and Baltim
 `201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.7z`, are available at the `raw_data/` folder. Please extract them to the current fold and 
 you will get a set of atomic files following the [LibCity](https://github.com/LibCity/Bigscity-LibCity) Unified Data Structures:
 
-| filename    | content                                                                         | example                                   |
-|-------------|---------------------------------------------------------------------------------|-------------------------------------------|
-| xxx.geo     | Store geographic entity attribute information.                                  | geo_id, type, coordinates                 |
+| filename    | content                                                                         | example                                              |
+|-------------|---------------------------------------------------------------------------------|------------------------------------------------------|
+| xxx.geo     | Store geographic entity attribute information.                                  | geo_id, type, coordinates                            |
 | xxx.rel     | Store the relationship information between entities, i.e. the adjacency matrix. | rel_id, type, origin_id, destination_id, link_weight |
-| xxx.dyna    | Store hourly crowd flow information.                                            | dyna_id, type, time, entity_id, Visits    |
-| xxx.ext     | Store external time-varying information, such as weather, holidays, etc.        | ext_id, time, properties[...]             |
-| xxx.static  | Store external static information, such as socioeconomics, POIs, demographics.  | geo_id, properties[...]                   |
-| config.json | Used to supplement the description of the above table information.              |                                           |
+| xxx.dyna    | Store hourly crowd flow information.                                            | dyna_id, type, time, entity_id, Visits               |
+| xxx.ext     | Store external time-varying information, such as weather, holidays, etc.        | ext_id, time, properties[...]                        |
+| xxx.static  | Store external static information, such as socioeconomics, POIs, demographics.  | geo_id, properties[...]                              |
+| xxx.gbst    | Store mean and std for each geo unit before the group-based z-score.            | geo_id, mean, std                                    |
+| config.json | Used to supplement the description of the above table information.              |                                                      |
 
 Data are retrieved from [SafeGraph](https://www.safegraph.com/) using the Weekly Places Patterns Dataset. 
 If you want to extract dataset in other areas from the raw dataset. Run codes at  `./data_prepare`.
@@ -56,10 +57,11 @@ For easy comparison among different models, the code and data formats follow the
 
 [//]: # (* The code for other baselines is located at `./libcity/model/`.)
 
-You can also directly copy the data and our model to the LibCity environment and run. 
+:exclamation: You can also directly copy the data and our model to the LibCity environment and run. 
 However, I suggest you directly using the repository here since some changes are made compared with the original LibCity:
 * A new data format for static variables is added.
 * A new dataset class, the mth_dataset, is added, to support multi-head temporal fusion across all models.
+* Support group-based normalization for model evaluation.
 * Some changes to support the separate inclusion of time-varying external variables and time-varying calendar variables.
 * Configurations of model, data, and executor are changed accordingly to fit our dataset.
 * Only those with performance greater than vanilla RNN are selected from LibCity as baselines in our study.
@@ -94,12 +96,12 @@ The script `run_model_parameters.py` is used for parameter study. Change the par
 ```bash
 # DC
 python run_model_parameters.py --task traffic_state_pred --dataset 201901010601_DC_SG_CTractFIPS_Hourly_Single_GP
+
+# Baltimore
+python run_model_parameters.py --task traffic_state_pred --dataset 201901010601_BM_SG_CTractFIPS_Hourly_Single_GP
 ```
 
 If you are using Google Colab, we also provide a notebook named `Colab_run_model.ipynb` to execute in Colab environment.
-
-:exclamation: After running the model, you should run the code `result_convert.py` to inversely transform the prediction to recover its scale, since we employ a census tract-based normalization. 
-Make sure to clean the `./libcity/cache` fold before run a new round of experiment.
 
 ### Results
 See details in our paper.
