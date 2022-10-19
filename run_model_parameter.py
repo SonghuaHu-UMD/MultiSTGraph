@@ -3,11 +3,13 @@ from libcity.pipeline import run_model
 from libcity.utils import str2bool, add_general_args
 
 model_list = ['MultiATGCN']
-# para_list = [[1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1], [2, 2, 1], [2, 3, 1], [3, 3, 1]]
-para_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
-             ['identity', 'none'], ['multi', 'bidirection']]
-# para_list = [[True, True, True, True], [True, True, False, False], [False, True, False, False], [False, True, False, True], [False, False, False, False]]
-# para_list = [True, False]
+# para_list = [[1, 0, 0], [0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1],
+#              [2, 2, 1], [2, 3, 1], [3, 3, 1]]
+# para_list = [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
+#              ['identity', 'none'], ['multi', 'bidirection']]
+# para_list = [[True, True, True, True], [True, True, False, False], [False, True, False, False],
+#              [False, True, False, True], [False, False, False, False]]
+para_list = [True, False]
 if __name__ == '__main__':
     for model_name in model_list:
         for para in para_list:
@@ -26,10 +28,11 @@ if __name__ == '__main__':
                     parser.add_argument('--seed', type=int, default=random_seed, help='random seed')
                     parser.add_argument('--start_dim', type=int, default=0, help='start_dim')
                     parser.add_argument('--end_dim', type=int, default=1, help='end_dim')
-                    parser.add_argument('--adjtype', type=str, default=para[0], help='adjtype')
-                    parser.add_argument('--adpadj', type=str, default=para[1], help='adpadj')
+                    # parser.add_argument('--adjtype', type=str, default=para[0], help='adjtype')
+                    # parser.add_argument('--adpadj', type=str, default=para[1], help='adpadj')
                     # parser.add_argument('--node_specific_off', type=bool, default=para, help='node_specific_off')
                     # parser.add_argument('--gcn_off', type=bool, default=para, help='gcn_off')
+                    parser.add_argument('--fnn_off', type=bool, default=para, help='fnn_off')
                     # parser.add_argument('--load_dynamic', type=bool, default=para[0], help='load_dynamic')
                     # parser.add_argument('--add_time_in_day', type=bool, default=para[1], help='add_time_in_day')
                     # parser.add_argument('--add_day_in_week', type=bool, default=para[2], help='add_day_in_week')

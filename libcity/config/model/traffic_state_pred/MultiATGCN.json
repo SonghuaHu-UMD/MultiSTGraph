@@ -11,7 +11,7 @@
   "bidir_adj_mx": false,
   "batch_size": 16,
   "adpadj": "bidirection",
-  "adjtype": "multi",
+  "adjtype": "od",
   "scaler": "standard",
   "add_static": false,
   "ext_scaler": "none",
