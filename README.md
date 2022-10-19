@@ -58,7 +58,7 @@ For easy comparison among different models, the code and data formats follow the
 [//]: # (* The code for other baselines is located at `./libcity/model/`.)
 
 :exclamation: You can also directly copy the data and our model to the LibCity environment and run. 
-However, I suggest you directly using the repository here since some changes are made compared with the original LibCity:
+However, I suggest using the repository here since some changes are made compared with the original LibCity:
 * A new data format for static variables is added.
 * A new dataset class, the mth_dataset, is added, to support multi-head temporal fusion across all models.
 * Support group-based normalization for model evaluation.
@@ -109,3 +109,10 @@ See details in our paper.
 ![Multi-view graph learning](figures/graphs.png "Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning")
 Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning.
 
+#### Top and last three census tracts (Baltimore)
+![Top and last three census tracts](figures/topbott_BM.png "Top and last three census tracts")
+Top and last three census tracts' forecasting results 
+
+#### Top and last three census tracts (DC)
+![Top and last three census tracts](figures/topbott_DC.png "Top and last three census tracts")
+Top and last three census tracts' forecasting results 
