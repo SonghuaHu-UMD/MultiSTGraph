@@ -9,6 +9,7 @@
   "add_time_in_day": true,
   "add_day_in_week": false,
   "groupstd": true,
+  "min_s": 1e-4,
   "hour_each_day": 24,
   "interval_period": 7,
   "interval_trend": 28,

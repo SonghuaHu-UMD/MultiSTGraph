@@ -168,8 +168,9 @@ class MTHDataset(TrafficStatePointDataset):
         Returns:
             dict: 包含数据集的相关特征的字典
         """
-        return {"scaler": self.scaler, "adj_mx": self.adj_mx, "static": self.static, "coordinate": self.coordinate,
-                "num_nodes": self.num_nodes, "feature_dim": self.feature_dim, "output_dim": self.output_dim,
+        return {"scaler": self.scaler, "adj_mx": self.adj_mx, "static": self.static,
+                "ct_visit_mstd": self.ct_visit_mstd, "coordinate": self.coordinate, "num_nodes": self.num_nodes,
+                "feature_dim": self.feature_dim, "output_dim": self.output_dim,
                 "ext_dim": self.ext_dim, "len_closeness": self.len_closeness * self.input_window,
                 "len_period": self.len_period * self.input_window, "len_trend": self.len_trend * self.input_window,
                 "num_batches": self.num_batches}

@@ -17,6 +17,7 @@ class TrafficStateEvaluator(AbstractEvaluator):
         self.save_modes = config.get('save_mode', ['csv', 'json'])
         self.mode = config.get('evaluator_mode', 'single')  # or average
         self.config = config
+        self.min_s = config.get('min_s', 1e-4)
         self.len_timeslots = 0
         self.result = {}  # 每一种指标的结果
         self.intermediate_result = {}  # 每一种指标每一个batch的结果
@@ -55,16 +56,16 @@ class TrafficStateEvaluator(AbstractEvaluator):
                 for metric in self.metrics:
                     if metric == 'masked_MAE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mae_torch(y_pred[:, :i], y_true[:, :i], 0).item())
+                            loss.masked_mae_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
                     elif metric == 'masked_MSE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mse_torch(y_pred[:, :i], y_true[:, :i], 0).item())
+                            loss.masked_mse_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
                     elif metric == 'masked_RMSE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_rmse_torch(y_pred[:, :i], y_true[:, :i], 0).item())
+                            loss.masked_rmse_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
                     elif metric == 'masked_MAPE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mape_torch(y_pred[:, :i], y_true[:, :i], 0).item())
+                            loss.masked_mape_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
                     elif metric == 'MAE':
                         self.intermediate_result[metric + '@' + str(i)].append(
                             loss.masked_mae_torch(y_pred[:, :i], y_true[:, :i]).item())
@@ -88,16 +89,16 @@ class TrafficStateEvaluator(AbstractEvaluator):
                 for metric in self.metrics:
                     if metric == 'masked_MAE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mae_torch(y_pred[:, i - 1], y_true[:, i - 1], 0).item())
+                            loss.masked_mae_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
                     elif metric == 'masked_MSE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mse_torch(y_pred[:, i - 1], y_true[:, i - 1], 0).item())
+                            loss.masked_mse_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
                     elif metric == 'masked_RMSE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_rmse_torch(y_pred[:, i - 1], y_true[:, i - 1], 0).item())
+                            loss.masked_rmse_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
                     elif metric == 'masked_MAPE':
                         self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mape_torch(y_pred[:, i - 1], y_true[:, i - 1], 0).item())
+                            loss.masked_mape_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
                     elif metric == 'MAE':
                         self.intermediate_result[metric + '@' + str(i)].append(
                             loss.masked_mae_torch(y_pred[:, i - 1], y_true[:, i - 1]).item())
@@ -160,8 +161,7 @@ class TrafficStateEvaluator(AbstractEvaluator):
                     dataframe[metric].append(self.result[metric + '@' + str(i)])
             dataframe = pd.DataFrame(dataframe, index=range(1, self.len_timeslots + 1))
             dataframe.to_csv(os.path.join(save_path, '{}.csv'.format(filename)), index=False)
-            self._logger.info('Evaluate result is saved at ' +
-                              os.path.join(save_path, '{}.csv'.format(filename)))
+            self._logger.info('Evaluate result is saved at ' + os.path.join(save_path, '{}.csv'.format(filename)))
             self._logger.info("\n" + str(dataframe[['MAE', 'masked_MAE', 'masked_MAPE', 'masked_RMSE']]))
             self._logger.info("\n" + str(dataframe[['MAE', 'masked_MAE', 'masked_MAPE', 'masked_RMSE']].mean()))
         return dataframe

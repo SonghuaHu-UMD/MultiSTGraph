@@ -26,6 +26,7 @@ class TrafficStateExecutor(AbstractExecutor):
         self.start_dim = config.get('start_dim', 0)
         self.end_dim = config.get('end_dim', 1)
         self.groupstd = config.get('groupstd', False)
+        self.ct_visit_mstd = self.data_feature.get('ct_visit_mstd')
 
         self.cache_dir = './libcity/cache/{}/model_cache'.format(self.exp_id)
         self.evaluate_res_dir = './libcity/cache/{}/evaluate_cache'.format(self.exp_id)
@@ -291,9 +292,7 @@ class TrafficStateExecutor(AbstractExecutor):
             # Re-transform the data
             if self.groupstd:
                 sh = y_preds.shape
-                ct_visit_mstd = pd.read_csv(
-                    r'.\raw_data\%s\%s.gbst' % (self.config['dataset'], self.config['dataset'])).sort_values(
-                    by='geo_id').reset_index(drop=True)
+                ct_visit_mstd = self.ct_visit_mstd
                 ct_ma = np.tile(ct_visit_mstd[['All_m']].values, (sh[0], sh[1], 1, sh[3]))
                 ct_sa = np.tile(ct_visit_mstd[['All_std']].values, (sh[0], sh[1], 1, sh[3]))
                 ct_id = np.tile(ct_visit_mstd[['geo_id']].values, (sh[0], sh[1], 1, sh[3]))

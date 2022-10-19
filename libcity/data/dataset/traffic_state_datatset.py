@@ -24,6 +24,7 @@ class TrafficStateDataset(AbstractDataset):
         self.batch_size = self.config.get('batch_size', 64)
         self.cache_dataset = self.config.get('cache_dataset', True)
         self.add_static = self.config.get('add_static', False)
+        self.groupstd = self.config.get('groupstd', True)
         self.num_workers = self.config.get('num_workers', 0)
         self.pad_with_last_sample = self.config.get('pad_with_last_sample', True)
         self.train_rate = self.config.get('train_rate', 0.7)
@@ -974,6 +975,11 @@ class TrafficStateDataset(AbstractDataset):
             self.static = np.array(static, dtype=np.float)
         else:
             self.static = None
+        if self.groupstd:
+            self.ct_visit_mstd = pd.read_csv(self.data_path + self.ext_file + '.gbst').sort_values(
+                by='geo_id').reset_index(drop=True)
+        else:
+            self.ct_visit_mstd = None
         self.coordinate = pd.read_csv(self.data_path + self.ext_file + '.geo')
 
         # 把训练集的X和y聚合在一起成为list，测试集验证集同理

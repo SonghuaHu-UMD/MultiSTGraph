@@ -105,7 +105,7 @@ If you are using Google Colab, we also provide a notebook named `Colab_run_model
 
 ### Results
 See details in our paper.
-#### Multi-view graph learning
+#### Multi-view graph learning (DC)
 ![Multi-view graph learning](figures/graphs.png "Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning")
 Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning.
 

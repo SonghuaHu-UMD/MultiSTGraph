@@ -179,7 +179,7 @@ for time_sp in time_sps:
 #              [[1, 0, 0], [0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [1, 3, 1],
 #               [2, 2, 1], [2, 3, 1], [3, 3, 1]]]
 para_list = [True, False]
-time_sps, n_repeat, para_name, n_steps, sunit = ['201901010601_BM'], 4, 'P_gcn', 24, 'CTractFIPS'
+time_sps, n_repeat, para_name, n_steps, sunit = ['201901010601_BM'], 4, 'P_Nodesep', 24, 'CTractFIPS'
 for time_sp in time_sps:
     filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_steps, para_name, time_sp))
     all_results = get_gp_data(filenames)
@@ -192,7 +192,7 @@ for time_sp in time_sps:
     ct_visit_mstd = pd.read_pickle(r'D:\ST_Graph\Results\%s_%s_visit_mstd.pkl' % (sunit, time_sp))
     ct_visit_mstd = ct_visit_mstd.sort_values(by=sunit).reset_index(drop=True)
     # Read prediction result
-    m_m = transfer_gp_data(filenames, ct_visit_mstd)
+    m_m = transfer_gp_data(filenames, ct_visit_mstd, s_small=10)
     m_md = pd.DataFrame(m_m)
     m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
     m_md = m_md.sort_values(by=['Model_time', 'index']).reset_index(drop=True)
