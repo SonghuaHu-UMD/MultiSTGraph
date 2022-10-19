@@ -3,7 +3,7 @@
 ![Multi-ATGCN](figures/framework.png "Model Architecture")
 
 This is a original PyTorch implementation of Multi-ATGCN in the following working paper: \
-**Songhua Hu, ... ,Paul Schonfled, 2022, Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
+**Songhua Hu, Yiqun Xie, Chenfeng Xiong, Paul Schonfled, 2022, Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
 
 ## Environment
 We use the torch == 1.10.2 and Python 3.6.11 for implementation.
@@ -54,7 +54,8 @@ The data statistics of two datasets are as followed:
 For easy comparison among different models, the code and data formats follow the framework proposed by [LibCity](https://github.com/LibCity/Bigscity-LibCity):
 * The code for Multi-ATGCN is located at `./libcity/model/traffic_flow_prediction/MultiATGCN.py`.
 * The code for dataset preprocessing is located at `./libcity/data/dataset/dataset_subclass/mth_dataset.py`.
-
+* The configuration for the model is located at `./libcity/config/model/traffic_state_pred/MultiATGCN.json`.
+* The user-defined configuration with the highest priority is located at `./config_user.json`.
 [//]: # (* The code for other baselines is located at `./libcity/model/`.)
 
 :exclamation: You can also directly copy the data and our model to the LibCity environment and run. 
