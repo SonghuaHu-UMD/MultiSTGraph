@@ -110,9 +110,9 @@ See details in our paper.
 Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning.
 
 #### Top and last three census tracts (Baltimore)
-![Top and last three census tracts](figures/topbott_BM.png "Top and last three census tracts")
+![Top and last three census tracts (Baltimore)](figures/topbott__BM.png "Top and last three census tracts' forecasting results")
 Top and last three census tracts' forecasting results 
 
 #### Top and last three census tracts (DC)
-![Top and last three census tracts](figures/topbott_DC.png "Top and last three census tracts")
+![Top and last three census tracts (DC)](figures/topbott__DC.png "Top and last three census tracts' forecasting results")
 Top and last three census tracts' forecasting results 
