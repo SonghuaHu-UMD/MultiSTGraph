@@ -2,7 +2,8 @@
 
 ![Multi-ATGCN](figures/framework.png "Model Architecture")
 
-This is a original PyTorch implementation of Multi-ATGCN in the following working paper: \
+This is an original PyTorch implementation of Multi-ATGCN in the following working paper:
+
 **Songhua Hu, Yiqun Xie, Chenfeng Xiong, Paul Schonfled, 2022, Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
 
 ## Environment
@@ -56,16 +57,18 @@ For easy comparison among different models, the code and data formats follow the
 * The code for dataset preprocessing is located at `./libcity/data/dataset/dataset_subclass/mth_dataset.py`.
 * The configuration for the model is located at `./libcity/config/model/traffic_state_pred/MultiATGCN.json`.
 * The user-defined configuration with the highest priority is located at `./config_user.json`.
+
 [//]: # (* The code for other baselines is located at `./libcity/model/`.)
 
 :exclamation: You can also directly copy the data and our model to the LibCity environment and run. 
 However, I suggest using the repository here since some changes are made compared with the original LibCity:
 * A new data format for static variables is added.
 * A new dataset class, the mth_dataset, is added, to support multi-head temporal fusion across all models.
-* Support group-based normalization for model evaluation.
-* Some changes to support the separate inclusion of time-varying external variables and time-varying calendar variables.
+* Support group-based normalization in model evaluation.
+* Support separate inclusion of time-varying external variables and time-varying calendar variables.
 * Configurations of model, data, and executor are changed accordingly to fit our dataset.
-* Only those with performance greater than vanilla RNN are selected from LibCity as baselines in our study.
+
+[//]: # (* Only those with performance greater than vanilla RNN are selected from LibCity as baselines in our study.)
 
 ## Model Training
 The script `run_model.py` is used for training and evaluating the main model:
@@ -92,7 +95,7 @@ python run_model.py --task traffic_state_pred --dataset 201901010601_BM_SG_CTrac
 
 [//]: # (```)
 
-The script `run_model_parameters.py` is used for parameter study. Change the parameter you are interested and run:
+The script `run_model_parameters.py` is used for parameter study and ablation study. Change the parameters you are interested and run:
 
 ```bash
 # DC
@@ -102,7 +105,8 @@ python run_model_parameters.py --task traffic_state_pred --dataset 201901010601_
 python run_model_parameters.py --task traffic_state_pred --dataset 201901010601_BM_SG_CTractFIPS_Hourly_Single_GP
 ```
 
-If you are using Google Colab, we also provide a notebook named `Colab_run_model.ipynb` to execute in Colab environment.
+If you are using Google Colab, we also provide a notebook named `Colab_run_model.ipynb` to execute in Colab environment. 
+Clone all files to your drive and execute the code blocks successively.
 
 ### Results
 See details in our paper.

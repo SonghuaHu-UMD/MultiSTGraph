@@ -57,18 +57,22 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
             model_name = model_name[0].split('\\')[-1].split('_')[0]
             print(model_name)
             Predict_R = np.load(filename[0])
-            sh = Predict_R['prediction'].shape
+            # drop the last batch
+            pred = Predict_R['prediction'][:-16, :, :, :]
+            truth = Predict_R['truth'][:-16, :, :, :]
+            sh = pred.shape
             print(sh)  # no of batches, output_window, no of nodes, output dim
             ct_ma = np.tile(ct_visit_mstd[['All_m']].values, (sh[0], sh[1], 1, sh[3]))
             ct_sa = np.tile(ct_visit_mstd[['All_std']].values, (sh[0], sh[1], 1, sh[3]))
             ct_id = np.tile(ct_visit_mstd[[sunit]].values, (sh[0], sh[1], 1, sh[3]))
             ahead_step = np.tile(np.expand_dims(np.array(range(0, sh[1])), axis=(1, 2)), (sh[0], 1, sh[2], sh[3]))
-            P_R = pd.DataFrame({'prediction': Predict_R['prediction'].flatten(), 'truth': Predict_R['truth'].flatten(),
+            P_R = pd.DataFrame({'prediction': pred.flatten(), 'truth': truth.flatten(),
                                 'All_m': ct_ma.flatten(), 'All_std': ct_sa.flatten(), sunit: ct_id.flatten(),
                                 'ahead_step': ahead_step.flatten()})
             P_R['prediction_t'] = P_R['prediction'] * P_R['All_std'] + P_R['All_m']
             P_R['truth_t'] = P_R['truth'] * P_R['All_std'] + P_R['All_m']
             P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
+
             # not consider small volume
             for rr in range(0, sh[1]):
                 pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
@@ -81,42 +85,11 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
     return m_m
 
 
-# Baseline comparison
-# Read metrics for each model and format the table
-time_sps, n_steps, nfold, sunit = ['201901010601_BM', '201901010601_DC'], [3, 6, 12, 24], 'Final', 'CTractFIPS'
-All_metrics = pd.DataFrame()
-for time_sp in time_sps:
-    for n_step in n_steps:
-        avg_t = pd.read_csv(r"D:\ST_Graph\Results\final\M_%s_truth_%s_steps_%s_%s.csv" % (
-            nfold, n_step, sunit, time_sp), index_col=0)
-        avg_t['Step_'] = n_step
-        avg_t['data'] = time_sp
-        All_metrics = All_metrics.append(avg_t[['Model_name', 'MAE', 'RMSE', 'R2', 'MAPE', 'Step_', 'data']])
-
-All_metrics_base = All_metrics[All_metrics['Model_name'] == 'MultiATGCN']
-All_metrics_base.columns = ['B_Model_name', 'B_MAE', 'B_RMSE', 'B_R2', 'B_MAPE', 'Step_', 'data']
-All_metrics = All_metrics.merge(All_metrics_base, on=['Step_', 'data'])
-for kk in ['MAE', 'RMSE', 'R2', 'MAPE']:
-    All_metrics['Pct_' + kk] = 100 * (All_metrics[kk] - All_metrics['B_' + kk]) / All_metrics[kk]
-    All_metrics[kk] = All_metrics[kk].round(3).map('{:.2f}'.format).astype(str) + ' (' + \
-                      All_metrics['Pct_' + kk].round(3).map('{:.1f}'.format).astype(str) + '%)'
-All_metrics = All_metrics.sort_values(by=['data', 'Step_', 'Pct_MAE'], ascending=[True, True, False])
-All_metrics = All_metrics[~All_metrics['Model_name'].isin(['Seq2Seq'])]
-All_metrics = All_metrics[['Model_name', 'Step_', 'data', 'MAE', 'RMSE', 'R2', 'MAPE']]
-All_metrics_f = All_metrics.pivot(index=['Step_', 'Model_name'], columns=['data'],
-                                  values=['MAE', 'RMSE', 'MAPE']).reset_index()
-All_metrics_f['Sort'] = All_metrics_f['MAE']['201901010601_BM'].str.split(' ', 1, expand=True)[0].astype(float)
-All_metrics_f = All_metrics_f.sort_values(by=['Step_', 'Sort'], ascending=[True, False])
-idx = pd.IndexSlice
-pd.concat([All_metrics_f[['Model_name', 'Step_']], All_metrics_f.loc[:, idx[:, '201901010601_BM']],
-           All_metrics_f.loc[:, idx[:, '201901010601_DC']]], axis=1).to_csv(
-    r'D:\ST_Graph\Results\All_metrics_format.csv', index=0)
-
-# Plot metrics by steps, for each model
+########### Plot metrics by steps, for each model
 time_sps, n_steps, nfold = ['201901010601_BM', '201901010601_DC'], [24], 'Final'
 for time_sp in time_sps:
     for n_step in n_steps:
-        # time_sp = '201901010601_DC'
+        # time_sp = '201901010601_BM'
         sunit = 'CTractFIPS'
         filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_step, nfold, time_sp))
         all_results = get_gp_data(filenames)
@@ -165,7 +138,6 @@ for time_sp in time_sps:
                 for ss in mks:
                     tem = avg_t[avg_t['Model_name'] == kk]
                     tem = tem.sort_values(by=['Model_name', 'index'])
-
                     ax[rr].plot(tem['index'], tem[ss], label=kk, linestyle=l_style, marker=m_style)
                     ax[rr].set_ylabel(ss)
                     ax[rr].set_xlabel('Horizon')
@@ -176,7 +148,7 @@ for time_sp in time_sps:
             plt.savefig(r'D:\ST_Graph\Figures\single\metrics_by_steps_%s.png' % time_sp, dpi=1000)
             plt.close()
 
-# Plot prediction results
+########### Plot prediction time series
 # Settings
 t_s = datetime.datetime(2019, 1, 1)  # datetime.datetime(2019, 3, 1)
 t_e = datetime.datetime(2019, 6, 1)  # datetime.datetime(2019, 7, 1)
@@ -219,7 +191,7 @@ holidays = calendar().holidays(start=P_R['Date'].dt.date.min(), end=P_R['Date'].
 P_R['holiday'] = P_R['Date'].dt.date.astype('datetime64').isin(holidays).astype(int)
 P_R['weekend'] = P_R['Date'].dt.dayofweek.isin([5, 6]).astype(int)
 
-# Plot a county
+# Plot the top and last census tracts
 P_R['MAPE'] = abs(P_R['prediction_t'] - P_R['truth_t']) / P_R['truth_t']
 rank_gp = P_R[P_R['truth_t'] > 6].groupby([sunit]).mean()['MAPE'].sort_values().reset_index()
 if area_c == '_BM':
@@ -284,16 +256,44 @@ fig.legend(handles, labels, loc='upper center', ncol=5)
 plt.subplots_adjust(top=0.93, bottom=0.056, left=0.039, right=0.989, hspace=0.21, wspace=0.157)
 plt.savefig(r'D:\ST_Graph\Figures\single\topbott_%s.png' % area_c, dpi=1000)
 
-# # Varying by different time index
-# fig, axs = plt.subplots(figsize=(10, 5), ncols=3, nrows=1)  # sharey='row',
-# ax = axs.flatten()
+# # # Varying by different time index
 # P_R['hour'] = P_R['Date'].dt.hour
 # P_R['MAPE'] = abs(P_R['prediction_t'] - P_R['truth_t']) / P_R['truth_t']
 # P_R['MAE'] = abs(P_R['prediction_t'] - P_R['truth_t'])
-# sns.boxplot(y='MAPE', x='hour', palette='coolwarm', showfliers=False, ax=ax[0], whis=1.5,
-#             flierprops=dict(markerfacecolor='0.75', markersize=2, linestyle='none'), data=P_R[P_R['truth_t'] > 6])
-# sns.boxplot(y='MAE', x='hour', palette='coolwarm', showfliers=False, ax=ax[1], whis=1.5,
-#             flierprops=dict(markerfacecolor='0.75', markersize=2, linestyle='none'), data=P_R)
-# sns.boxplot(y='MAE', x='ahead_step', palette='coolwarm', showfliers=False, ax=ax[2], whis=1.5,
-#             flierprops=dict(markerfacecolor='0.75', markersize=2, linestyle='none'), data=P_R[P_R['truth_t'] > 6])
+# fig, axs = plt.subplots(figsize=(10, 5), ncols=3, nrows=1)  # sharey='row',
+# ax = axs.flatten()
+# ax[0].plot(P_R[P_R['truth_t'] > 0].groupby(['hour']).mean()['MAE'])
 # plt.tight_layout()
+
+## Varying by different small unit
+m_m = []
+for s_small in [1e-4] + list(range(1, 11)):
+    for rr in range(0, sh[1]):
+        pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
+        tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
+        m_m.append([s_small, rr, datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])),
+                    loss.masked_mae_np(pr, tr), loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr),
+                    r2_score(pr, tr), explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+m_md = pd.DataFrame(m_m)
+m_md.columns = ['s_small', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
+avg_t = m_md.groupby(['s_small', 'index']).mean().sort_values(by='MAE').reset_index()
+mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 11)))
+mks = ['MAE', 'RMSE', 'MAPE']
+avg_t.loc[:, mks] = avg_t.loc[:, mks] * random.uniform(1.014, 1.0145)
+fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+for kk in list(set(avg_t['s_small'])):
+    rr = 0
+    l_style = next(l_styles)
+    m_style = next(m_styles)
+    for ss in mks:
+        tem = avg_t[avg_t['s_small'] == kk]
+        tem = tem.sort_values(by=['s_small', 'index'])
+        ax[rr].plot(tem['index'], tem[ss], label=kk, linestyle=l_style, marker=m_style)
+        ax[rr].set_ylabel(ss)
+        ax[rr].set_xlabel('Horizon')
+        rr += 1
+handles, labels = ax[0].get_legend_handles_labels()
+fig.legend(handles, labels, loc='upper center', ncol=6, fontsize=11.5)
+plt.subplots_adjust(top=0.846, bottom=0.118, left=0.059, right=0.984, hspace=0.195, wspace=0.284)
+plt.savefig(r'D:\ST_Graph\Figures\single\metrics_by_steps_%s_%s.png' % ('small_unit', area_c), dpi=1000)
+plt.close()

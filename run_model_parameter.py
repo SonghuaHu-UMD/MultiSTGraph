@@ -9,8 +9,10 @@ model_list = ['MultiATGCN']
 #              ['identity', 'none'], ['multi', 'bidirection']]
 # para_list = [[True, True, True, True], [True, True, False, False], [False, True, False, False],
 #              [False, True, False, True], [False, False, False, False]]
-para_list = [True, False]
-# para_list= [16, 32, 64, 72, 128]
+# para_list = [True, False]
+# para_list= [16, 32, 64, 72]
+# para_list = [1, 5, 10, 20, 30, 50]
+para_list = [1, 2, 3, 4, 5]
 # para_list = [False]
 if __name__ == '__main__':
     for model_name in model_list:
@@ -30,10 +32,12 @@ if __name__ == '__main__':
                     parser.add_argument('--seed', type=int, default=random_seed, help='random seed')
                     parser.add_argument('--start_dim', type=int, default=0, help='start_dim')
                     parser.add_argument('--end_dim', type=int, default=1, help='end_dim')
+                    # parser.add_argument('--embed_dim_node', type=int, default=para, help='embed_dim_node')
+                    parser.add_argument('--cheb_order', type=int, default=para, help='cheb_order')
                     # parser.add_argument('--rnn_units', type=int, default=para, help='rnn_units')
                     # parser.add_argument('--adjtype', type=str, default=para[0], help='adjtype')
                     # parser.add_argument('--adpadj', type=str, default=para[1], help='adpadj')
-                    parser.add_argument('--node_specific_off', type=bool, default=para, help='node_specific_off')
+                    # parser.add_argument('--node_specific_off', type=bool, default=para, help='node_specific_off')
                     # parser.add_argument('--gcn_off', type=bool, default=para, help='gcn_off')
                     # parser.add_argument('--fnn_off', type=bool, default=para, help='fnn_off')
                     # parser.add_argument('--load_dynamic', type=bool, default=para[0], help='load_dynamic')
