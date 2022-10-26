@@ -20,8 +20,7 @@ cd MultiSTGraph
 ```
 
 ## Data Preparation
-The group-based normalized crowd flow data files for Washington, D.C. and Baltimore City, i.e., `201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.7z` and 
-`201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.7z`, are available at the `raw_data/` folder. Please extract them to the current fold and 
+Data files for Washington, D.C. and Baltimore City are available at the `raw_data/` folder. Please extract them to the current fold and 
 you will get a set of atomic files following the LibCity Unified Data Structures:
 
 | filename    | content                                                                      | example                                              |
@@ -34,9 +33,13 @@ you will get a set of atomic files following the LibCity Unified Data Structures
 | xxx.gbst    | Store mean and std for each geo unit before the group-based z-score.         | geo_id, mean, std                                    |
 | config.json | Used to supplement the description of the above table information.           |                                                      |
 
-The .dyna files are retrieved from [SafeGraph](https://www.safegraph.com/) using the Weekly Places Patterns Dataset.
-Run codes at  `./data_prepare` to prepare the data and transfer it to the required format.
+The .dyna files are retrieved from [SafeGraph](https://www.safegraph.com/) using the Weekly Places Patterns Dataset. 
+Run codes at  `./data_prepare` to prepare the data and transfer it to the required format if you own the access to the raw Weekly Places Patterns Dataset.
+
+[//]: # (We don't have the permission to share the data but you can request it via the Safegraph website.)
+
 The data statistics of two datasets are as followed:
+
 
 |                           | Washington, D.C.                              | Baltimore City (and surrounding counties) |
 |---------------------------|-----------------------------------------------|-------------------------------------------|
