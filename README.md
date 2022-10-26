@@ -4,7 +4,7 @@
 
 This is an original PyTorch implementation of Multi-ATGCN in the following working paper:
 
-** Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
+**Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
 
 ## Environment
 We use the torch == 1.10.2 and Python 3.6.11 for implementation.
@@ -22,7 +22,7 @@ cd MultiSTGraph
 ## Data Preparation
 The group-based normalized crowd flow data files for Washington, D.C. and Baltimore City, i.e., `201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.7z` and 
 `201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.7z`, are available at the `raw_data/` folder. Please extract them to the current fold and 
-you will get a set of atomic files following the [LibCity](https://github.com/LibCity/Bigscity-LibCity) Unified Data Structures:
+you will get a set of atomic files following the LibCity Unified Data Structures:
 
 | filename    | content                                                                         | example                                              |
 |-------------|---------------------------------------------------------------------------------|------------------------------------------------------|
@@ -79,21 +79,6 @@ python run_model.py --task traffic_state_pred --dataset 201901010601_DC_SG_CTrac
 # Baltimore
 python run_model.py --task traffic_state_pred --dataset 201901010601_BM_SG_CTractFIPS_Hourly_Single_GP
 ```
-
-[//]: # (The script `run_model_baselines.py` is used for training and evaluating other baselines including )
-
-[//]: # (TGCN, DCRNN, AGCRN, ASTGCN, STGCN, MTGNN, GWNET, GMAN, GRU, and LSTM. )
-
-[//]: # (See the reference list here: [Baselines]&#40;https://bigscity-libcity-docs.readthedocs.io/en/latest/user_guide/model.html&#41;. )
-
-[//]: # ()
-[//]: # (```bash)
-
-[//]: # (# DC)
-
-[//]: # (python run_model_baselines.py --task traffic_state_pred --dataset 201901010601_DC_SG_CTractFIPS_Hourly_Single_GP)
-
-[//]: # (```)
 
 The script `run_model_parameters.py` is used for parameter study and ablation study. Change the parameters you are interested and run:
 
