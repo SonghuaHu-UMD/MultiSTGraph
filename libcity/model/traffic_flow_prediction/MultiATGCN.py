@@ -258,7 +258,7 @@ class MultiATGCN(AbstractTrafficStateModel):
             geo_coor.index.repeat(len(geo_coor)), ['geo_id', 'x', 'y']].reset_index(drop=True)
         geo_mx['dist'] = haversine_array(geo_mx['y'], geo_mx['x'], geo_mx['y_1'], geo_mx['x_1'])
         geo_mx = geo_mx.pivot(index='geo_id', columns='geo_id_1', values='dist').values
-        self.adj_mx_dis = torch.FloatTensor(calculate_adjacency_matrix_dist(geo_mx, 0.0))
+        self.adj_mx_dis = torch.FloatTensor(calculate_adjacency_matrix_dist(geo_mx, 0.1))
 
         # Adjacent matrix: multiple
         self.adpadj = config.get('adpadj', "bidirection")
