@@ -77,9 +77,9 @@ class AGCN(nn.Module):
         node_num = node_emb.shape[0]  # node_emb: E
         I_mx = torch.eye(node_num).to(x.device)
         # If using adaptive graph
-        if self.adpadj == 'bidirection':
+        if self.adpadj == 'unidirection':
             support_adp = [[I_mx, F.softmax(F.relu(torch.mm(node_vec1, node_vec2)), dim=1)]]
-        elif self.adpadj == 'unidirection':
+        elif self.adpadj == 'bidirection':
             support_adp = [[I_mx, F.softmax(F.relu(torch.mm(node_emb, node_emb.T)), dim=1)]]
         elif self.adpadj == 'none':
             support_adp = None

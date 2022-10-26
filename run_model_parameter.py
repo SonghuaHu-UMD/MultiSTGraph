@@ -12,7 +12,7 @@ model_list = ['MultiATGCN']
 # para_list = [True, False]
 # para_list= [16, 32, 64, 72]
 # para_list = [1, 5, 10, 20, 30, 50]
-para_list = [1, 2, 3, 4, 5]
+para_list = [1, 2, 3]
 # para_list = [False]
 if __name__ == '__main__':
     for model_name in model_list:

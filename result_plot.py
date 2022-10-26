@@ -12,17 +12,11 @@ from pandas.tseries.holiday import USFederalHolidayCalendar as calendar
 import random
 from itertools import cycle
 import matplotlib.dates as mdates
-from mpl_toolkits.axes_grid1.inset_locator import mark_inset
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-import matplotlib.patches as patches
 from matplotlib.patches import Rectangle
-import seaborn as sns
 
 random.seed(10)
 pd.options.mode.chained_assignment = None
 results_path = r'D:\ST_Graph\results_record\\'
-l_styles = cycle(['-', '--', '-.'])
-m_styles = cycle(['o', '^', '*'])
 plt.rcParams.update(
     {'font.size': 13, 'font.family': "serif", 'mathtext.fontset': 'dejavuserif', 'xtick.direction': 'in',
      'xtick.major.size': 0.5, 'grid.linestyle': "--", 'axes.grid': True, "grid.alpha": 1, "grid.color": "#cccccc",
@@ -85,69 +79,6 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
     return m_m
 
 
-########### Plot metrics by steps, for each model
-time_sps, n_steps, nfold = ['201901010601_BM', '201901010601_DC'], [24], 'Final'
-for time_sp in time_sps:
-    for n_step in n_steps:
-        # time_sp = '201901010601_BM'
-        sunit = 'CTractFIPS'
-        filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_step, nfold, time_sp))
-        all_results = get_gp_data(filenames)
-        if len(all_results) > 0:
-            # Re-transform the data
-            ct_visit_mstd = pd.read_pickle(r'.\other_data\%s_%s_visit_mstd.pkl' % (sunit, time_sp)).sort_values(
-                by=sunit).reset_index(drop=True)
-            m_m = transfer_gp_data(filenames, ct_visit_mstd, s_small=10)
-            m_md = pd.DataFrame(m_m)
-            m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
-            avg_t = m_md.groupby(['Model_name', 'index']).mean().sort_values(by='MAE').reset_index()
-            avg_t = avg_t[~avg_t['Model_name'].isin(['STSGCN', 'STTN', 'RNN', 'FNN', 'Seq2Seq', 'TGCN'])]
-            avg_t = avg_t.sort_values(by=['Model_name', 'index']).reset_index()
-            n_col = ['MAE', 'MSE', 'RMSE', 'MAPE']
-            avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] = \
-                avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] * 1.02
-            if n_step == 24:
-                avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] * random.uniform(1.014, 1.0145)
-            if n_step == 24 and 'DC' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                    (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.1, 1.15)).values
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.05, 1.1)
-                avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * random.uniform(1.02, 1.04)
-                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.03, 1.05)
-            if n_step == 24 and 'BM' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                    (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.2, 1.25)).values
-                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.06, 1.07)
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.016, 1.02)
-                avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * random.uniform(1.02, 1.04)
-
-            mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 10)))
-            mks = ['MAE', 'RMSE', 'MAPE']
-            fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
-            for kk in list(set(avg_t['Model_name'])):
-                rr = 00
-                l_style = next(l_styles)
-                m_style = next(m_styles)
-                for ss in mks:
-                    tem = avg_t[avg_t['Model_name'] == kk]
-                    tem = tem.sort_values(by=['Model_name', 'index'])
-                    ax[rr].plot(tem['index'], tem[ss], label=kk, linestyle=l_style, marker=m_style)
-                    ax[rr].set_ylabel(ss)
-                    ax[rr].set_xlabel('Horizon')
-                    rr += 1
-            handles, labels = ax[0].get_legend_handles_labels()
-            fig.legend(handles, labels, loc='upper center', ncol=6, fontsize=11.5)
-            plt.subplots_adjust(top=0.846, bottom=0.117, left=0.059, right=0.984, hspace=0.195, wspace=0.284)
-            plt.savefig(r'D:\ST_Graph\Figures\single\metrics_by_steps_%s.png' % time_sp, dpi=1000)
-            plt.close()
-
 ########### Plot prediction time series
 # Settings
 t_s = datetime.datetime(2019, 1, 1)  # datetime.datetime(2019, 3, 1)
@@ -157,7 +88,7 @@ time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_st = t_s + datetime.timedelta(days=28)
 t_et = t_e - datetime.timedelta(hours=1)  # print((t_et - t_st).days * 0.15 * 24)
 split_time = t_et - datetime.timedelta(hours=math.ceil((t_et - t_st).days * 0.15 * 24) + 24)
-filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_steps, nfold, time_sp))
+filenames = glob.glob(r'D:\ST_Graph\results_record\\plot\\' + r"%s steps\%s\%s\*" % (n_steps, nfold, time_sp))
 for kk in filenames:
     filename = glob.glob(kk + r"\\evaluate_cache\*.npz")
     model_name = glob.glob(kk + '\\model_cache\\*.m')[0].split('\\')[-1].split('_')[0]
@@ -255,15 +186,7 @@ handles, labels = axs[0].get_legend_handles_labels()
 fig.legend(handles, labels, loc='upper center', ncol=5)
 plt.subplots_adjust(top=0.93, bottom=0.056, left=0.039, right=0.989, hspace=0.21, wspace=0.157)
 plt.savefig(r'D:\ST_Graph\Figures\single\topbott_%s.png' % area_c, dpi=1000)
-
-# # # Varying by different time index
-# P_R['hour'] = P_R['Date'].dt.hour
-# P_R['MAPE'] = abs(P_R['prediction_t'] - P_R['truth_t']) / P_R['truth_t']
-# P_R['MAE'] = abs(P_R['prediction_t'] - P_R['truth_t'])
-# fig, axs = plt.subplots(figsize=(10, 5), ncols=3, nrows=1)  # sharey='row',
-# ax = axs.flatten()
-# ax[0].plot(P_R[P_R['truth_t'] > 0].groupby(['hour']).mean()['MAE'])
-# plt.tight_layout()
+plt.close()
 
 ## Varying by different small unit
 m_m = []
@@ -277,9 +200,12 @@ for s_small in [1e-4] + list(range(1, 11)):
 m_md = pd.DataFrame(m_m)
 m_md.columns = ['s_small', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
 avg_t = m_md.groupby(['s_small', 'index']).mean().sort_values(by='MAE').reset_index()
+m_md.groupby(['s_small']).mean().sort_values(by='MAE')
 mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 11)))
+l_styles = cycle(['-', '--', '-.'])
+m_styles = cycle(['o', '^', '*'])
 mks = ['MAE', 'RMSE', 'MAPE']
-avg_t.loc[:, mks] = avg_t.loc[:, mks] * random.uniform(1.014, 1.0145)
+# avg_t.loc[:, mks] = avg_t.loc[:, mks] * random.uniform(1.014, 1.0145)
 fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
 for kk in list(set(avg_t['s_small'])):
     rr = 0
@@ -297,3 +223,23 @@ fig.legend(handles, labels, loc='upper center', ncol=6, fontsize=11.5)
 plt.subplots_adjust(top=0.846, bottom=0.118, left=0.059, right=0.984, hspace=0.195, wspace=0.284)
 plt.savefig(r'D:\ST_Graph\Figures\single\metrics_by_steps_%s_%s.png' % ('small_unit', area_c), dpi=1000)
 plt.close()
+
+# Plot parameter
+para_list = ['P_ebed', 'P_K', 'P_RNN', 'P_tepheadclose', 'P_tepheadperiod']
+p_name = ['Embedding size', 'Chebyshev-K', 'RNN units', '# Closeness heads', '# Period heads']
+time_sp, n_steps, sunit = '201901010601_BM', 24, 'CTractFIPS'
+fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(10, 3), sharey='row')
+axs = ax.ravel()
+kk = 0
+axs[0].set_ylabel('MAE')
+for para_name in para_list:
+    avg_t = pd.read_csv(r"D:\ST_Graph\Results\results_mstd_%s_truth_%s_%s.csv" % (para_name, sunit, time_sp),
+                        index_col=0)
+    avg_t = avg_t.sort_values(by='Para').reset_index(drop=True)
+    axs[kk].plot(avg_t['Para'], avg_t['MAE_mean'], '-o', label=para_name, color='k', markersize=3, alpha=0.8)
+    axs[kk].errorbar(avg_t['Para'], avg_t['MAE_mean'], avg_t['MAE_std'], color='red', fmt='o', capsize=5, markersize=0,
+                     alpha=0.8)
+    axs[kk].set_xlabel(p_name[kk])
+    kk += 1
+plt.tight_layout()
+plt.savefig(r'D:\ST_Graph\Figures\single\para_test.png', dpi=1000)

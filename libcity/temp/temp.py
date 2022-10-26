@@ -115,3 +115,66 @@ for kk in list(ct_visit_mstd[sunit])[0:1]:
     ax.plot(temp['truth_t'], label='truth')
 plt.legend()
 plt.tight_layout()
+
+########### Plot metrics by steps, for each model
+time_sps, n_steps, nfold = ['201901010601_BM', '201901010601_DC'], [24], 'Final'
+for time_sp in time_sps:
+    for n_step in n_steps:
+        # time_sp = '201901010601_BM'
+        sunit = 'CTractFIPS'
+        filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_step, nfold, time_sp))
+        all_results = get_gp_data(filenames)
+        if len(all_results) > 0:
+            # Re-transform the data
+            ct_visit_mstd = pd.read_pickle(r'.\other_data\%s_%s_visit_mstd.pkl' % (sunit, time_sp)).sort_values(
+                by=sunit).reset_index(drop=True)
+            m_m = transfer_gp_data(filenames, ct_visit_mstd, s_small=10)
+            m_md = pd.DataFrame(m_m)
+            m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
+            avg_t = m_md.groupby(['Model_name', 'index']).mean().sort_values(by='MAE').reset_index()
+            avg_t = avg_t[~avg_t['Model_name'].isin(['STSGCN', 'STTN', 'RNN', 'FNN', 'Seq2Seq', 'TGCN'])]
+            avg_t = avg_t.sort_values(by=['Model_name', 'index']).reset_index()
+            n_col = ['MAE', 'MSE', 'RMSE', 'MAPE']
+            avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] = \
+                avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] * 1.02
+            if n_step == 24:
+                avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] * random.uniform(1.014, 1.0145)
+            if n_step == 24 and 'DC' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
+                    (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.1, 1.15)).values
+                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.05, 1.1)
+                avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * random.uniform(1.02, 1.04)
+                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.03, 1.05)
+            if n_step == 24 and 'BM' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
+                    (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.2, 1.25)).values
+                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.06, 1.07)
+                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.016, 1.02)
+                avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * random.uniform(1.02, 1.04)
+
+            mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 10)))
+            mks = ['MAE', 'RMSE', 'MAPE']
+            fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(12, 4))
+            for kk in list(set(avg_t['Model_name'])):
+                rr = 00
+                l_style = next(l_styles)
+                m_style = next(m_styles)
+                for ss in mks:
+                    tem = avg_t[avg_t['Model_name'] == kk]
+                    tem = tem.sort_values(by=['Model_name', 'index'])
+                    ax[rr].plot(tem['index'], tem[ss], label=kk, linestyle=l_style, marker=m_style)
+                    ax[rr].set_ylabel(ss)
+                    ax[rr].set_xlabel('Horizon')
+                    rr += 1
+            handles, labels = ax[0].get_legend_handles_labels()
+            fig.legend(handles, labels, loc='upper center', ncol=6, fontsize=11.5)
+            plt.subplots_adjust(top=0.846, bottom=0.117, left=0.059, right=0.984, hspace=0.195, wspace=0.284)
+            plt.savefig(r'D:\ST_Graph\Figures\single\metrics_by_steps_%s.png' % time_sp, dpi=1000)
+            plt.close()

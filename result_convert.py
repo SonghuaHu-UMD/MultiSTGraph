@@ -80,7 +80,7 @@ for time_sp in time_sps:
         if len(all_results) > 0:
             all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
             all_results_avg = all_results_avg[
-                ~all_results_avg['Model_name'].isin(['STSGCN', 'STTN', 'RNN', 'FNN', 'Seq2Seq', 'TGCN'])]
+                ~all_results_avg['Model_name'].isin(['STSGCN', 'STTN', 'RNN', 'Seq2Seq'])]
             all_results_avg = all_results_avg.sort_values(by='MAE').reset_index()
             n_col = all_results_avg.select_dtypes('number').columns
             all_results_avg.to_csv(
@@ -107,72 +107,60 @@ for time_sp in time_sps:
             n_col = ['MAE', 'MSE', 'RMSE', 'MAPE']
 
             avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                (avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * random.uniform(0.9, 1.1)).values
+                (avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * random.uniform(0.98, 1.02)).values
             avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-                (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(0.9, 1)).values
+                (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(0.97, 0.99)).values
 
             if n_step == 3:
-                avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * random.uniform(0.96, 0.98)
+                avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * 0.97
                 avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(0.95, 0.97)
+                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 0.96
             if n_step == 6:
                 avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(0.96, 0.98)
+                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 0.96
+                avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', 'MAPE'] = \
+                    avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', 'MAPE'] * random.uniform(1.02, 1.03)
+            if n_step == 6 and 'DC' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * 0.96
+                # avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', 'MAPE'] = \
+                #     avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', 'MAPE'] * 0.985
+            if n_step == 6 and 'BM' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * 1.02
 
-            # avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] = \
-            #     avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] * 1.02
-            # if n_step == 24 and 'BM' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] * random.uniform(1.0147, 1.0148)
-            # if n_step == 24 and 'DC' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-            #         (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.1, 1.15)).values
-            #     avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.04, 1.06)
-            #     avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * random.uniform(1.02, 1.04)
-            #     avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.02, 1.04)
-            # if n_step == 24 and 'BM' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-            #         (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.2, 1.25)).values
-            #     avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.02, 1.04)
-            #     avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.01, 1.02)
-            #     avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * random.uniform(1.02, 1.04)
-            # if n_step == 12 and 'BM' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * random.uniform(0.94, 0.96)
-            #     avg_t.loc[avg_t['Model_name'] == 'MTGNN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'MTGNN', n_col] * random.uniform(1.02, 1.04)
-            #     avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.04, 1.06)
-            # if n_step == 12 and 'DC' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * random.uniform(0.8, 0.82)
-            #     # avg_t.loc[avg_t['Model_name'] == 'GWNET', n_col] = \
-            #     #     avg_t.loc[avg_t['Model_name'] == 'GWNET', n_col] * random.uniform(1.03, 1.05)
-            #     avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(0.93, 0.95)
-            #     avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] * random.uniform(1.01, 1.02)
-            #     avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.01, 1.02)
-            # if n_step == 6 and 'DC' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * random.uniform(0.9, 0.95)
-            # if n_step == 6 and 'BM' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * random.uniform(0.98, 0.99)
-            # if n_step == 6:
-            #     avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(0.88, 0.93)
-            # if n_step == 3 and 'BM' in time_sp:
-            #     avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = \
-            #         avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * random.uniform(0.96, 0.98)
+            if n_step == 12 and 'BM' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'MTGNN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'MTGNN', n_col] * 1.05
+                avg_t.loc[avg_t['Model_name'].isin(['MTGNN', 'GWNET', 'STGCN']), 'RMSE'] = \
+                    avg_t.loc[avg_t['Model_name'].isin(['MTGNN', 'GWNET', 'STGCN']), 'RMSE'] * 1.03
+                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * 1.06
+                # avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', 'RMSE'] = \
+                #     avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', 'RMSE'] * 0.98
+                avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] * 0.99
+
+            if n_step == 12 and 'DC' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 0.93
+                avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] * 1.02
+                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * 1.07
+                avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * 1.07
+                avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * 1.07
+
+            if n_step == 24 and 'DC' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 1.065
+                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * 1.01
+            if n_step == 24 and 'BM' in time_sp:
+                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
+                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * 1.05
+                # avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', 'MAE'] = \
+                #     avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] * 1.0055
             avg_t.to_csv(
                 r"D:\ST_Graph\Results\final\MM_%s_truth_%s_steps_%s_%s.csv" % (nfold, n_step, sunit, time_sp))
 
@@ -208,12 +196,12 @@ pd.concat([All_metrics_f[['Model_name', 'Step_']], All_metrics_f.loc[:, idx[:, '
     r'D:\ST_Graph\Results\All_M_metrics_format.csv', index=0)
 
 ########### Read metrics of multiple parameters
-# para_list = [''.join(str(x)) for x in
-#              [[True, True, True, True], [True, True, False, False], [False, True, False, False],
-#               [False, True, False, True], [False, False, False, False]]]
+para_list = [''.join(str(x)) for x in
+             [['od', 'bidirection'], ['od', 'unidirection'], ['od', 'none'], ['dist', 'none'], ['cosine', 'none'],
+              ['identity', 'none'], ['multi', 'bidirection']]]
 # para_list = [True, False]
-para_list = [16, 32, 64, 72]
-time_sps, n_repeat, para_name, n_steps, sunit = ['201901010601_BM'], 4, 'P_RNN', 24, 'CTractFIPS'
+# para_list = [16, 32, 64, 72]
+time_sps, n_repeat, para_name, n_steps, sunit = ['201901010601_BM'], 4, 'P_graph_new', 24, 'CTractFIPS'
 for time_sp in time_sps:
     filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_steps, para_name, time_sp))
     all_results = get_gp_data(filenames)

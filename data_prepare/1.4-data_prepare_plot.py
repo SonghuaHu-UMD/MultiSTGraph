@@ -54,7 +54,7 @@ def adj_wide2long(learned_graph, Geo_Info, colname):
 results_path = r'D:\\ST_Graph\\Data\\'
 geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
 t_s, t_e = datetime.datetime(2019, 1, 1), datetime.datetime(2019, 6, 1)  # datetime.datetime(2019, 7, 1)
-area_c, sunit = '_DC', 'CTractFIPS'
+area_c, sunit = '_BM', 'CTractFIPS'
 time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_days = (t_e - t_s).days
 train_ratio = 0.7
@@ -82,7 +82,7 @@ poly = CBG_Info.merge(Dyna_avg[['GEOID', 'Visits']], on='GEOID')
 # Figure 1: Plot Spatially before group normal
 plot_1 = 'Visits'
 colormap = 'coolwarm'
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 5), gridspec_kw={'width_ratios': [3, 1.5]})
+fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), gridspec_kw={'width_ratios': [3, 1.5]})
 CBG_Info.geometry.boundary.plot(color=None, edgecolor='k', linewidth=0.1, ax=ax[0])
 poly.plot(column=plot_1, ax=ax[0], legend=True, scheme='UserDefined', cmap=colormap, linewidth=0, edgecolor='white',
           classification_kwds=dict(bins=[np.quantile(poly[plot_1], 1 / 6), np.quantile(poly[plot_1], 2 / 6),
@@ -123,7 +123,7 @@ Dyna['time'] = pd.to_datetime(Dyna['time'])
 Dyna['GEOID'] = Dyna['entity_id'].astype(str)
 Dyna['Visits'] = Dyna['Visits'] - Dyna['Visits'].mean() / Dyna['Visits'].std()
 mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 100)))
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(8, 4))
 for kk in set(Dyna['entity_id']):
     tempfile = Dyna[Dyna['entity_id'] == kk]
     ax.plot(tempfile['time'], tempfile['Visits'], label=kk, alpha=0.4, lw=1)
@@ -143,7 +143,7 @@ Dyna['time'] = pd.to_datetime(Dyna['time'])
 Dyna['dayofweek'] = Dyna['time'].dt.dayofweek
 Dyna['hour'] = Dyna['time'].dt.hour
 Dyna_avg = Dyna.groupby(['entity_id', 'dayofweek', 'hour']).mean()['Visits'].reset_index()
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(8, 4))
 for kk in set(Dyna_avg['entity_id']):
     tempfile = Dyna_avg[Dyna_avg['entity_id'] == kk]
     tempfile = tempfile.sort_values(by=['dayofweek', 'hour']).reset_index(drop=True).reset_index()
@@ -161,10 +161,14 @@ Geo_Info = pd.read_csv(results_path + r'Lib_Data\%s\%s.geo' % (f_nas, f_nas))
 Geo_Info['geo_id'] = Geo_Info['geo_id'].astype(str)
 
 # Learned adj matrix
+# if area_c == '_DC':
+#     cache_name = r'D:\ST_Graph\results_record\3 steps\Final\201901010601_DC\24375\model_cache\MultiATGCN_201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.m'
+# else:
+#     cache_name = r'D:\ST_Graph\results_record\24 steps\Final\201901010601_BM\47938\model_cache\MultiATGCN_201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.m'
 if area_c == '_DC':
-    cache_name = r'D:\ST_Graph\results_record\3 steps\Final\201901010601_DC\24375\model_cache\MultiATGCN_201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.m'
+    cache_name = r'D:\ST_Graph\results_record\24 steps\Final\201901010601_DC\8075\model_cache\MultiATGCN_201901010601_DC_SG_CTractFIPS_Hourly_Single_GP.m'
 else:
-    cache_name = r'D:\ST_Graph\results_record\24 steps\Final\201901010601_BM\47938\model_cache\MultiATGCN_201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.m'
+    cache_name = r'D:\ST_Graph\results_record\24 steps\Final\201901010601_BM\25940\model_cache\MultiATGCN_201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.m'
 model_state, optimizer_state = torch.load(cache_name)
 # learned_graph = torch.matmul(model_state['node_vec1'], model_state['node_vec2'])
 learned_graph = pd.DataFrame(
@@ -218,8 +222,10 @@ Geo_Infoxy.columns = ['des', 'D_Lng', 'D_Lat']
 adj_final = adj_final.merge(Geo_Infoxy, on='des')
 
 # Plot
+T_name = ['Self-Adaptive', 'Functionality Similarity', 'OD Volume', 'Distance Closeness']
+cc = 0
 for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
-    fig, ax = plt.subplots(figsize=(9, 7))
+    fig, ax = plt.subplots(figsize=(8, 6))
     poly.geometry.boundary.plot(color=None, edgecolor='k', linewidth=0.3, ax=ax)
     Cn = adj_final[adj_final[p1] > np.percentile(adj_final[p1], 90)].reset_index(drop=True)
     print(len(Cn))
@@ -231,6 +237,7 @@ for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
                                 'color': 'royalblue', 'alpha': 0.3, 'connectionstyle': "arc3,rad=0.2"}, va='center')
     ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
     ax.axis('off')
-    ax.set_title('Adjacent matrix (%s)' % p1, pad=-0)
+    ax.set_title(T_name[cc], pad=-0)
     plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s_%s.png' % (p1, area_c), dpi=600)
     plt.close()
+    cc += 1

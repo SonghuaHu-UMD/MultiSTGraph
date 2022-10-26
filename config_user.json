@@ -1,5 +1,5 @@
 {
-  "max_epoch": 30,
+  "max_epoch": 1,
   "train_rate": 0.7,
   "eval_rate": 0.15,
   "input_window": 24,
@@ -13,7 +13,7 @@
   "hour_each_day": 24,
   "interval_period": 7,
   "interval_trend": 28,
-  "len_closeness": 1,
+  "len_closeness": 2,
   "len_period": 1,
   "len_trend": 1,
   "use_early_stop": true,
