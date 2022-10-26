@@ -4,7 +4,7 @@
 
 This is an original PyTorch implementation of Multi-ATGCN in the following working paper:
 
-**Songhua Hu, Yiqun Xie, Chenfeng Xiong, Paul Schonfled, 2022, Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
+** Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
 
 ## Environment
 We use the torch == 1.10.2 and Python 3.6.11 for implementation.
