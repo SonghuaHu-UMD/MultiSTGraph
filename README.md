@@ -24,18 +24,18 @@ The group-based normalized crowd flow data files for Washington, D.C. and Baltim
 `201901010601_BM_SG_CTractFIPS_Hourly_Single_GP.7z`, are available at the `raw_data/` folder. Please extract them to the current fold and 
 you will get a set of atomic files following the LibCity Unified Data Structures:
 
-| filename    | content                                                                         | example                                              |
-|-------------|---------------------------------------------------------------------------------|------------------------------------------------------|
-| xxx.geo     | Store geographic entity attribute information.                                  | geo_id, type, coordinates                            |
+| filename    | content                                                                      | example                                              |
+|-------------|------------------------------------------------------------------------------|------------------------------------------------------|
+| xxx.geo     | Store geographic entity attribute information.                               | geo_id, type, coordinates                            |
 | xxx.rel     | Store the relationship information between entities, i.e. the adjacency matrix. | rel_id, type, origin_id, destination_id, link_weight |
-| xxx.dyna    | Store hourly crowd flow information.                                            | dyna_id, type, time, entity_id, Visits               |
-| xxx.ext     | Store external time-varying information, such as weather, holidays, etc.        | ext_id, time, properties[...]                        |
-| xxx.static  | Store external static information, such as socioeconomics, POIs, demographics.  | geo_id, properties[...]                              |
-| xxx.gbst    | Store mean and std for each geo unit before the group-based z-score.            | geo_id, mean, std                                    |
-| config.json | Used to supplement the description of the above table information.              |                                                      |
+| xxx.dyna    | Store hourly crowd flow information.                                         | dyna_id, type, time, entity_id, Visits               |
+| xxx.ext     | Store external time-varying information, such as weather, holidays, etc.     | ext_id, time, properties[...]                        |
+| xxx.static  | Store external static information, such as socioeconomics, POIs, demographics. | geo_id, properties[...]                              |
+| xxx.gbst    | Store mean and std for each geo unit before the group-based z-score.         | geo_id, mean, std                                    |
+| config.json | Used to supplement the description of the above table information.           |                                                      |
 
-Data are retrieved from [SafeGraph](https://www.safegraph.com/) using the Weekly Places Patterns Dataset. 
-If you want to extract dataset in other areas from the raw dataset. Run codes at  `./data_prepare`.
+The .dyna files are retrieved from [SafeGraph](https://www.safegraph.com/) using the Weekly Places Patterns Dataset.
+Run codes at  `./data_prepare` to prepare the data and transfer it to the required format.
 The data statistics of two datasets are as followed:
 
 |                           | Washington, D.C.                              | Baltimore City (and surrounding counties) |
