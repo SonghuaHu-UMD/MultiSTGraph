@@ -12,6 +12,7 @@ import torch
 import torch.nn.functional as F
 from scipy.spatial.distance import cdist
 import functools as ft
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 pd.options.mode.chained_assignment = None
 
@@ -91,10 +92,10 @@ poly.plot(column=plot_1, ax=ax[0], legend=True, scheme='UserDefined', cmap=color
           alpha=0.9)
 ax[0].tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
 ax[0].axis('off')
-ax[0].set_title('Hourly Population Inflow (Average)', pad=-5)
+ax[0].set_title('Hourly Crowd Inflow', pad=-5, fontsize=13)
 # Reset Legend
 patch_col = ax[0].get_legend()
-patch_col.set_bbox_to_anchor((1.05, 0.05))
+patch_col.set_bbox_to_anchor((1.2, 0.05))
 legend_labels = ax[0].get_legend().get_texts()
 for bound, legend_label in \
         zip(['< ' + str(round(np.quantile(poly[plot_1], 1 / 6))),
@@ -113,7 +114,7 @@ x_data = x_data[:-1]
 ax[1].loglog(x_data, y_data, basex=10, basey=10, linestyle='None', marker='o', markersize=5, alpha=0.8,
              fillstyle='none')
 ax[1].set_ylabel('Probability Density')
-ax[1].set_xlabel('Population Inflow')
+ax[1].set_xlabel('Crowd Inflow')
 plt.savefig(r'D:\ST_Graph\Figures\single\%s_%s_loglogplot.png' % (time_sp, sunit), dpi=1000)
 plt.close()
 
@@ -128,7 +129,7 @@ for kk in set(Dyna['entity_id']):
     tempfile = Dyna[Dyna['entity_id'] == kk]
     ax.plot(tempfile['time'], tempfile['Visits'], label=kk, alpha=0.4, lw=1)
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-ax.set_ylabel('Hourly Population Inflow (Normalized)')
+ax.set_ylabel('Hourly Crowd Inflow (Normalized)')
 ax.set_xlabel('Date')
 ax.plot(Dyna.groupby('time')['Visits'].mean(), color='k', alpha=0.6, lw=1.5)
 ax.plot([split_time, split_time], [-1, 25], '-.', color='green', alpha=0.6, lw=3)
@@ -138,21 +139,43 @@ plt.savefig(r'D:\ST_Graph\Figures\single\%s_%s_normal_daily_plot.png' % (time_sp
 plt.close()
 
 # Figure 3: weekly plot
+mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 100)))
 Dyna = pd.read_csv(results_path + r'Lib_Data\%s\%s.dyna' % (f_gps, f_gps))
 Dyna['time'] = pd.to_datetime(Dyna['time'])
 Dyna['dayofweek'] = Dyna['time'].dt.dayofweek
 Dyna['hour'] = Dyna['time'].dt.hour
 Dyna_avg = Dyna.groupby(['entity_id', 'dayofweek', 'hour']).mean()['Visits'].reset_index()
-fig, ax = plt.subplots(figsize=(8, 4))
+fig, ax = plt.subplots(figsize=(8, 3.5))
 for kk in set(Dyna_avg['entity_id']):
     tempfile = Dyna_avg[Dyna_avg['entity_id'] == kk]
     tempfile = tempfile.sort_values(by=['dayofweek', 'hour']).reset_index(drop=True).reset_index()
-    ax.plot(tempfile['index'], tempfile['Visits'], label=kk, alpha=0.4, lw=1)
-ax.set_ylabel('Hourly Population Inflow (Normalized)')
+    ax.plot(tempfile['index'], tempfile['Visits'], alpha=0.4, lw=1)
+ax.set_ylabel('Hourly Crowd Inflow')
 ax.set_xlabel('Hour')
-Dyna_avg_a = Dyna.groupby(['dayofweek', 'hour']).mean()['Visits'].reset_index().reset_index()
-ax.plot(Dyna_avg_a['index'], Dyna_avg_a['Visits'], color='k', alpha=0.6, lw=2)
-plt.tight_layout()
+ax.set_xticks(list(range(0, 168, 12)))
+ax.set_xticklabels(list(range(0, 24, 12)) * 7)
+# Dyna_avg_a = Dyna.groupby(['dayofweek', 'hour']).mean()['Visits'].reset_index().reset_index()
+# ax.plot(Dyna_avg_a['index'], Dyna_avg_a['Visits'], color='k', alpha=0.6, lw=2)
+colors = ['k', 'blue', 'red']
+labels = ['Zone 1', 'Zone 2', 'Zone 3']
+cct = 0
+axins3 = inset_axes(ax, width="20%", height='40%', loc=2)
+small_geos = CBG_Info[CBG_Info['GEOID'].isin(
+    ['24510040100', '24510110200', '24510170100', '24510040200', '24510220100', '24510030200', '24510280500',
+     '24510110100'])]
+small_geos.geometry.boundary.plot(color=None, edgecolor='gray', linewidth=0.2, ax=axins3)
+for kk in [24510040100, 24510030200, 24510220100]:  # 24510040100, 24510030200, 24510220100,
+    # 24510040100, 24510110200, 24510170100, 24510040200, 24510220100, 24510030200, 24510280500, 24510110100
+    tempfile = Dyna_avg[Dyna_avg['entity_id'] == kk]
+    tempfile = tempfile.sort_values(by=['dayofweek', 'hour']).reset_index(drop=True).reset_index()
+    ax.plot(tempfile['index'], tempfile['Visits'], label=labels[cct], alpha=1, lw=2, color=colors[cct])
+    small_geo = CBG_Info[CBG_Info['GEOID'] == str(kk)]
+    small_geo.geometry.boundary.plot(color=None, edgecolor=colors[cct], linewidth=1, ax=axins3)
+    axins3.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    cct += 1
+# axins3.axis('off')
+ax.legend(loc='upper right')
+plt.subplots_adjust(top=0.964, bottom=0.143, left=0.074, right=0.976, hspace=0.2, wspace=0.2)
 plt.savefig(r'D:\ST_Graph\Figures\single\%s_%s_normal_weekly_plot.png' % (time_sp, sunit), dpi=1000)
 plt.close()
 
