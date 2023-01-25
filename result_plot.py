@@ -138,7 +138,7 @@ endTime = startTime + datetime.timedelta(days=7)
 start = mdates.date2num(startTime)
 end = mdates.date2num(endTime)
 width = end - start
-fig, ax = plt.subplots(nrows=4, ncols=3, figsize=(14, 7))
+fig, ax = plt.subplots(nrows=4, ncols=3, figsize=(10, 7))
 dd = 1
 axs = ax.flatten()
 ccount = 0
@@ -184,7 +184,7 @@ for idx in last_3:
     ccount += 1
 handles, labels = axs[0].get_legend_handles_labels()
 fig.legend(handles, labels, loc='upper center', ncol=5)
-plt.subplots_adjust(top=0.93, bottom=0.056, left=0.039, right=0.989, hspace=0.21, wspace=0.157)
+plt.subplots_adjust(top=0.94, bottom=0.046, left=0.04, right=0.989, hspace=0.21, wspace=0.15)
 plt.savefig(r'D:\ST_Graph\Figures\single\topbott_%s.png' % area_c, dpi=1000)
 plt.close()
 
@@ -226,9 +226,9 @@ plt.close()
 
 # Plot parameter
 para_list = ['P_ebed', 'P_K', 'P_RNN', 'P_tepheadclose', 'P_tepheadperiod']
-p_name = ['Embedding size', 'Chebyshev-K', 'RNN units', '# Closeness heads', '# Period heads']
+p_name = ['# Embedding', 'Chebyshev-K', 'RNN units', '# Closeness', '# Period']
 time_sp, n_steps, sunit = '201901010601_BM', 24, 'CTractFIPS'
-fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(10, 3), sharey='row')
+fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(7, 2.5), sharey='row')
 axs = ax.ravel()
 kk = 0
 axs[0].set_ylabel('MAE')

@@ -172,8 +172,9 @@ for kk in [24510040100, 24510030200, 24510220100]:  # 24510040100, 24510030200, 
     small_geo = CBG_Info[CBG_Info['GEOID'] == str(kk)]
     small_geo.geometry.boundary.plot(color=None, edgecolor=colors[cct], linewidth=1, ax=axins3)
     axins3.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    axins3.annotate(text=labels[cct][-1], xy=small_geo.geometry.centroid.iloc[0].coords[0], ha='center',
+                    color=colors[cct])
     cct += 1
-# axins3.axis('off')
 ax.legend(loc='upper right')
 plt.subplots_adjust(top=0.964, bottom=0.143, left=0.074, right=0.976, hspace=0.2, wspace=0.2)
 plt.savefig(r'D:\ST_Graph\Figures\single\%s_%s_normal_weekly_plot.png' % (time_sp, sunit), dpi=1000)
@@ -248,9 +249,9 @@ adj_final = adj_final.merge(Geo_Infoxy, on='des')
 T_name = ['Self-Adaptive', 'Functionality Similarity', 'OD Volume', 'Distance Closeness']
 cc = 0
 for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(7, 4))
     poly.geometry.boundary.plot(color=None, edgecolor='k', linewidth=0.3, ax=ax)
-    Cn = adj_final[adj_final[p1] > np.percentile(adj_final[p1], 90)].reset_index(drop=True)
+    Cn = adj_final[adj_final[p1] > np.percentile(adj_final[p1], 99)].reset_index(drop=True)
     print(len(Cn))
     for kk in range(0, len(Cn)):
         ax.annotate('', xy=(Cn.loc[kk, 'O_Lng'], Cn.loc[kk, 'O_Lat']),
@@ -261,6 +262,7 @@ for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
     ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
     ax.axis('off')
     ax.set_title(T_name[cc], pad=-0)
+    plt.tight_layout()
     plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s_%s.png' % (p1, area_c), dpi=600)
     plt.close()
     cc += 1
