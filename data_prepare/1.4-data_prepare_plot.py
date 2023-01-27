@@ -83,7 +83,7 @@ poly = CBG_Info.merge(Dyna_avg[['GEOID', 'Visits']], on='GEOID')
 # Figure 1: Plot Spatially before group normal
 plot_1 = 'Visits'
 colormap = 'coolwarm'
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), gridspec_kw={'width_ratios': [3, 1.5]})
+fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(7, 3), gridspec_kw={'width_ratios': [3, 1.5]})
 CBG_Info.geometry.boundary.plot(color=None, edgecolor='k', linewidth=0.1, ax=ax[0])
 poly.plot(column=plot_1, ax=ax[0], legend=True, scheme='UserDefined', cmap=colormap, linewidth=0, edgecolor='white',
           classification_kwds=dict(bins=[np.quantile(poly[plot_1], 1 / 6), np.quantile(poly[plot_1], 2 / 6),
@@ -95,7 +95,7 @@ ax[0].axis('off')
 ax[0].set_title('Hourly Crowd Inflow', pad=-5, fontsize=13)
 # Reset Legend
 patch_col = ax[0].get_legend()
-patch_col.set_bbox_to_anchor((1.2, 0.05))
+patch_col.set_bbox_to_anchor((1.6, 0.05))
 legend_labels = ax[0].get_legend().get_texts()
 for bound, legend_label in \
         zip(['< ' + str(round(np.quantile(poly[plot_1], 1 / 6))),
@@ -105,7 +105,7 @@ for bound, legend_label in \
              str(round(np.quantile(poly[plot_1], 4 / 6))) + ' - ' + str(round(np.quantile(poly[plot_1], 5 / 6))),
              '> ' + str(round(np.quantile(poly[plot_1], 5 / 6)))], legend_labels):
     legend_label.set_text(bound)
-plt.subplots_adjust(top=0.96, bottom=0.137, left=-0.1, right=0.984, hspace=0.2, wspace=-0.1)
+plt.subplots_adjust(top=0.96, bottom=0.2, left=-0.1, right=0.984, hspace=0.2, wspace=-0.1)
 # Power low
 sns.set_palette("coolwarm")
 bins = range(1, int(Dyna[plot_1].max()) + 2, 10)
@@ -266,3 +266,77 @@ for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
     plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s_%s.png' % (p1, area_c), dpi=600)
     plt.close()
     cc += 1
+
+# Plot external static variables
+static_var = pd.read_pickle(r'D:\ST_Graph\Results\CTractFIPS_Socio_bmc.pkl')
+static_var['CTractFIPS'] = static_var['CTractFIPS'].astype(str)
+static_var.rename({'CTractFIPS': 'GEOID'}, axis=1, inplace=True)
+static_var['Median_income'] = static_var['Median_income'] / 1e3
+static_var['Total_Population_CTractFIPS'] = static_var['Total_Population_CTractFIPS'] / 1e3
+static_var['Total'] = static_var[
+    ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']].sum(axis=1)
+for kk in ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']:
+    static_var[kk] = 100 * (static_var[kk] / static_var['Total'])
+poly = CBG_Info.merge(static_var, on='GEOID')
+fig, axs = plt.subplots(nrows=3, ncols=2, figsize=(5, 5))
+ax = axs.flatten()
+cct = 0
+tts = ['Income (k)', 'Population (k)', '% White', '% Elderly', '% Restaurant', '% Retail']
+for plot_1 in ['Median_income', 'Total_Population_CTractFIPS', 'White_Non_Hispanic_R', 'Over_65_R', 'Residential',
+               'Education']:
+    # plot_1 = 'Median_income'
+    colormap = 'coolwarm'
+    CBG_Info.geometry.boundary.plot(color=None, edgecolor='k', linewidth=0.1, ax=ax[cct])
+    poly.plot(column=plot_1, ax=ax[cct], legend=True, scheme='UserDefined', cmap=colormap, linewidth=0,
+              edgecolor='white',
+              classification_kwds=dict(bins=[np.quantile(poly[plot_1], 1 / 6), np.quantile(poly[plot_1], 2 / 6),
+                                             np.quantile(poly[plot_1], 3 / 6), np.quantile(poly[plot_1], 4 / 6),
+                                             np.quantile(poly[plot_1], 5 / 6)]),
+              legend_kwds=dict(frameon=False, ncol=1, fontsize=11), alpha=0.9)
+    ax[cct].tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    ax[cct].axis('off')
+    ax[cct].set_title(tts[cct], pad=-2, fontsize=12)
+    # Reset Legend
+    patch_col = ax[cct].get_legend()
+    patch_col.set_bbox_to_anchor((0.01, 1))
+    legend_labels = ax[cct].get_legend().get_texts()
+    for bound, legend_label in \
+            zip(['< ' + str(round(np.quantile(poly[plot_1], 1 / 6))),
+                 str(round(np.quantile(poly[plot_1], 1 / 6))) + ' - ' + str(round(np.quantile(poly[plot_1], 2 / 6))),
+                 str(round(np.quantile(poly[plot_1], 2 / 6))) + ' - ' + str(round(np.quantile(poly[plot_1], 3 / 6))),
+                 str(round(np.quantile(poly[plot_1], 3 / 6))) + ' - ' + str(round(np.quantile(poly[plot_1], 4 / 6))),
+                 str(round(np.quantile(poly[plot_1], 4 / 6))) + ' - ' + str(round(np.quantile(poly[plot_1], 5 / 6))),
+                 '> ' + str(round(np.quantile(poly[plot_1], 5 / 6)))], legend_labels):
+        legend_label.set_text(bound)
+    plt.subplots_adjust(top=0.946, bottom=0.014, left=0.16, right=1.0, hspace=0.08, wspace=0.096)
+    # plt.tight_layout()
+    cct += 1
+plt.savefig(r'D:\ST_Graph\Figures\Single\External_Socio.png', dpi=600)
+plt.close()
+
+# Plot external temporal variables
+weather = pd.read_pickle(r'D:\ST_Graph\Results\weather_2019_bmc.pkl')
+weather = weather[weather['DATE'] < datetime.datetime(2019, 3, 1)]
+Dyna = pd.read_csv(results_path + r'Lib_Data\%s\%s.dyna' % (f_gps, f_gps))
+Dyna['time'] = pd.to_datetime(Dyna['time'])
+# Dyna['Visits'] = Dyna['Visits'] - Dyna['Visits'].mean() / Dyna['Visits'].std()
+Dyna = Dyna[Dyna['time'].dt.month < 3]
+
+fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(5, 5.5), sharex=True)
+ax = axs.flatten()
+ax[0].plot(weather['DATE'], weather['rain'], color='k', alpha=0.6, lw=1.5)
+ax[0].set_ylabel('Rainfall')
+ax[1].plot(weather['DATE'], weather['snow'], color='k', alpha=0.6, lw=1.5)
+ax[1].set_ylabel('Snow')
+ax[2].plot(weather['DATE'], weather['temp'], color='k', alpha=0.6, lw=1.5)
+ax[2].set_ylabel('Temperature')
+# for kk in set(Dyna['entity_id']):
+#     tempfile = Dyna[Dyna['entity_id'] == kk]
+#     ax[3].plot(tempfile['time'], tempfile['Visits'], label=kk, alpha=0.4, lw=1)
+ax[3].plot(Dyna.groupby('time')['Visits'].median(), color='blue', alpha=0.6, lw=1.5)
+ax[3].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+ax[3].xaxis.set_major_locator(mdates.DayLocator(interval=30))
+ax[3].set_ylabel('Crowd Inflow')
+plt.tight_layout()
+plt.savefig(r'D:\ST_Graph\Figures\single\external_dynamic.png', dpi=1000)
+plt.close()
