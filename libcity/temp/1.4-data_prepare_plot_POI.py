@@ -25,7 +25,7 @@ f_na, f_nas = 'SG_CTS_Hourly', 'SG_CTS_Hourly_Single'
 POI_Type = ['Education', 'Others', 'Recreation', 'Residential', 'Restaurant', 'Retail', 'Service']
 
 # Dynamic
-Dyna = pd.read_csv(results_path + r'Lib_Data\%s\%s.dyna' % (f_na, f_na))
+Dyna = pd.read_csv(results_path + r'Lib_Data\old\%s\%s.dyna' % (f_na, f_na))
 Dyna['time'] = pd.to_datetime(Dyna['time'])
 Dyna['date'] = Dyna['time'].dt.date
 Dyna['hour'] = Dyna['time'].dt.hour

@@ -226,9 +226,9 @@ plt.close()
 
 # Plot parameter
 para_list = ['P_ebed', 'P_K', 'P_RNN', 'P_tepheadclose', 'P_tepheadperiod']
-p_name = ['# Embedding', 'Chebyshev-K', 'RNN units', '# Closeness', '# Period']
+p_name = ['# Embedding', 'Chebyshev-K', '# RNN units', '# Closeness', '# Period']
 time_sp, n_steps, sunit = '201901010601_BM', 24, 'CTractFIPS'
-fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(7, 2.5), sharey='row')
+fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(8, 2.5), sharey='row')
 axs = ax.ravel()
 kk = 0
 axs[0].set_ylabel('MAE')

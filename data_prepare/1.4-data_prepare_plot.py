@@ -55,7 +55,7 @@ def adj_wide2long(learned_graph, Geo_Info, colname):
 results_path = r'D:\\ST_Graph\\Data\\'
 geo_path = r'E:\SafeGraph\Open Census Data\Census Website\2019\\'
 t_s, t_e = datetime.datetime(2019, 1, 1), datetime.datetime(2019, 6, 1)  # datetime.datetime(2019, 7, 1)
-area_c, sunit = '_BM', 'CTractFIPS'
+area_c, sunit = '_DC', 'CTractFIPS'
 time_sp = t_s.strftime('%Y%m%d') + t_e.strftime('%m%d') + area_c
 t_days = (t_e - t_s).days
 train_ratio = 0.7
@@ -251,7 +251,7 @@ cc = 0
 for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
     fig, ax = plt.subplots(figsize=(7, 4))
     poly.geometry.boundary.plot(color=None, edgecolor='k', linewidth=0.3, ax=ax)
-    Cn = adj_final[adj_final[p1] > np.percentile(adj_final[p1], 99)].reset_index(drop=True)
+    Cn = adj_final[adj_final[p1] > np.percentile(adj_final[p1], 95)].reset_index(drop=True)
     print(len(Cn))
     for kk in range(0, len(Cn)):
         ax.annotate('', xy=(Cn.loc[kk, 'O_Lng'], Cn.loc[kk, 'O_Lat']),
@@ -263,7 +263,7 @@ for p1 in ['learned_weight', 'similar_weight', 'od_weight', 'distance_weight']:
     ax.axis('off')
     ax.set_title(T_name[cc], pad=-0)
     plt.tight_layout()
-    plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s_%s.png' % (p1, area_c), dpi=600)
+    plt.savefig(r'D:\ST_Graph\Figures\Single\Adjacent_%s_%s_1.png' % (p1, area_c), dpi=600)
     plt.close()
     cc += 1
 

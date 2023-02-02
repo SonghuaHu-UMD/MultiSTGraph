@@ -63,7 +63,7 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
                 tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
                 m_m.append([model_name, rr, datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])),
                             loss.masked_mae_np(pr, tr), loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr),
-                            r2_score(pr, tr), explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+                            r2_score(tr, pr), explained_variance_score(tr, pr), loss.masked_mape_np(pr, tr)])
         else:
             print(kk + '----NULL----')
     return m_m
@@ -93,72 +93,6 @@ for time_sp in time_sps:
             m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
             avg_t = m_md.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
             avg_t = avg_t[~avg_t['Model_name'].isin(['STSGCN', 'STTN', 'Seq2Seq', 'TGCN'])]
-            # If DCRNN is missing
-            if 'DCRNN' not in list(avg_t['Model_name']):
-                all_results_avg_fix = pd.read_csv(
-                    r"D:\ST_Graph\Results\old\Noext\M_Noext_truth_%s_steps_%s_%s.csv" % (n_step, sunit, time_sp),
-                    index_col=0)
-                all_results_avg_fix = all_results_avg_fix[all_results_avg_fix['Model_name'] == 'DCRNN']
-                n_col = all_results_avg_fix.select_dtypes('number').columns
-                all_results_avg_fix[n_col] = all_results_avg_fix[n_col] * 0.95
-                avg_t = avg_t.append(all_results_avg_fix)
-            avg_t = avg_t.sort_values(by='MAE').reset_index()
-            n_col = ['MAE', 'MSE', 'RMSE', 'MAPE']
-            if 'BM' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                    (avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * random.uniform(0.96, 1.01)).values
-            avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-                ((avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col]).values + (
-                    avg_t.loc[avg_t['Model_name'] == 'GRU', n_col]).values) * random.uniform(0.49, 0.52)
-            if 'DC' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                    ((avg_t.loc[avg_t['Model_name'] == 'GRU', n_col]).values + (
-                        avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col]).values) * random.uniform(0.49, 0.51)
-            if n_step == 3:
-                avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * 0.97
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 0.96
-            if n_step == 6:
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 0.96
-                avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', 'MAPE'] = \
-                    avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', 'MAPE'] * random.uniform(1.02, 1.03)
-            if n_step == 6 and 'DC' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * 0.96
-            if n_step == 6 and 'BM' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] = avg_t.loc[avg_t['Model_name'] == 'GMAN', n_col] * 1.02
-            if n_step == 12 and 'BM' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'MTGNN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'MTGNN', n_col] * 1.01
-                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * 1.03
-                avg_t.loc[avg_t['Model_name'].isin(['MTGNN', 'GWNET', 'STGCN']), 'RMSE'] = \
-                    avg_t.loc[avg_t['Model_name'].isin(['MTGNN', 'GWNET', 'STGCN']), 'RMSE'] * 1.03
-                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * 1.02
-                avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] * 0.99
-
-            if n_step == 12 and 'DC' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 0.95
-                avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'AGCRN', n_col] * 1.01
-                # avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                #     avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * 1.07
-                # avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] = \
-                #     avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * 1.07
-                # avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-                #     avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * 1.07
-
-            if n_step == 24 and 'DC' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * 1.05
-                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * 1.01
-            if n_step == 24 and 'BM' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * 1.02
             avg_t.to_csv(
                 r"D:\ST_Graph\Results\final\M_%s_truth_%s_steps_%s_%s.csv" % (nfold, n_step, sunit, time_sp))
 
