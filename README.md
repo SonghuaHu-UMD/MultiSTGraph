@@ -1,4 +1,4 @@
-# Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting
+# Multi-ATGCN: A Multi-View Graph Neural Network-based Framework for Citywide Crowd Inflow Forecasting
 
 ![Multi-ATGCN](figures/framework.png "Model Architecture")
 
