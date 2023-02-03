@@ -4,7 +4,7 @@
 
 This is an original PyTorch implementation of Multi-ATGCN in the following working paper:
 
-**Multi-ATGCN: A multi-graph multi-head adaptive temporal graph convolutional network for multivariable crowd inflow forecasting**
+**Multi-ATGCN: A Multi-View Graph Neural Network-based Framework for Citywide Crowd Inflow Forecasting**
 
 ## Environment
 We use the torch == 1.10.2 and Python 3.6.11 for implementation.
@@ -98,10 +98,6 @@ Clone all files to your drive and execute the code blocks successively.
 
 ### Results
 See details in our paper.
-#### Multi-view graph learning (DC)
-![Multi-view graph learning](figures/graphs.png "Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning")
-Adjacency matrix measured by (a) distance closeness, (b) functionality similarity, (c) OD volume, and (d) self-adaptive learning.
-
 #### Top and last three census tracts (Baltimore)
 ![Top and last three census tracts (Baltimore)](figures/topbott__BM.png "Top and last three census tracts' forecasting results")
 Top and last three census tracts' forecasting results 
