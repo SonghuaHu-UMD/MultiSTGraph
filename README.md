@@ -12,12 +12,12 @@ We use the torch == 1.10.2 and Python 3.6.11 for implementation.
 We follow the framework of [LibCity](https://github.com/LibCity/Bigscity-LibCity) to prepare data and run the model.
 See more details in the `requirement.txt` and the [LibCity document](https://bigscity-libcity-docs.readthedocs.io/en/latest/index.html).
 
-Please execute the following command to get the source code.
+<!-- Please execute the following command to get the source code.
 
 ```bash
 git clone https://github.com/SonghuaHu-UMD/MultiSTGraph
 cd MultiSTGraph
-```
+``` -->
 
 ## Data Preparation
 Data files for Washington, D.C. and Baltimore City are available at the `raw_data/` folder. Please extract them to the current fold and 
