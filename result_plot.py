@@ -13,6 +13,7 @@ import random
 from itertools import cycle
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
+import seaborn as sns
 
 random.seed(10)
 pd.options.mode.chained_assignment = None
@@ -243,3 +244,27 @@ for para_name in para_list:
     kk += 1
 plt.tight_layout()
 plt.savefig(r'D:\ST_Graph\Figures\single\para_test.png', dpi=1000)
+
+# Plot ablation analysis
+import matplotlib.ticker as mtick
+
+aba_p = pd.read_excel(r'D:\ST_Graph\writing\ABAP.xlsx', engine='openpyxl', )
+aba_p = aba_p.sort_values(by=['Name', 'Time']).reset_index(drop=True)
+aba_p.rename({'Time': 'Horizon'}, axis=1, inplace=True)
+aba_p['MAE_pct'] = aba_p['MAE_pct'] * 100
+sns.set_palette("Set1")
+fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 4), sharey='row')
+ax.yaxis.set_major_formatter(mtick.PercentFormatter())
+for kk in list(aba_p['Name'].drop_duplicates()):
+    avg_t = aba_p[aba_p['Name'] == kk]
+    ax.plot(avg_t['Horizon'], avg_t['MAE_pct'], '-o', label=kk, alpha=0.9)
+ax.set_ylabel('Change (%)')
+ax.set_xlabel('Horizon')
+ax.set_xticks([3, 6, 12, 24])
+plt.tight_layout()
+plt.savefig(r'D:\ST_Graph\Figures\single\aba_test1.png', dpi=1000)
+# ax.legend(ncol=3, loc='upper right')
+g = sns.catplot(data=aba_p, kind="bar", x="Horizon", y="MAE", hue="Name", palette="Set1", alpha=.9, height=4, aspect=1)
+g.set(ylim=(7, 8.4))
+plt.savefig(r'D:\ST_Graph\Figures\single\aba_test2.png', dpi=1000)
+# plt.tight_layout()
