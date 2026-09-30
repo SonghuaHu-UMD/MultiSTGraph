@@ -134,30 +134,7 @@ for time_sp in time_sps:
             avg_t = m_md.groupby(['Model_name', 'index']).mean().sort_values(by='MAE').reset_index()
             avg_t = avg_t[~avg_t['Model_name'].isin(['STSGCN', 'STTN', 'RNN', 'FNN', 'Seq2Seq', 'TGCN'])]
             avg_t = avg_t.sort_values(by=['Model_name', 'index']).reset_index()
-            n_col = ['MAE', 'MSE', 'RMSE', 'MAPE']
-            avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] = \
-                avg_t.loc[avg_t['Model_name'] != 'MultiATGCN', n_col] * 1.02
-            if n_step == 24:
-                avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'MultiATGCN', n_col] * random.uniform(1.014, 1.0145)
-            if n_step == 24 and 'DC' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                    (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.1, 1.15)).values
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.05, 1.1)
-                avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'LSTM', n_col] * random.uniform(1.02, 1.04)
-                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.03, 1.05)
-            if n_step == 24 and 'BM' in time_sp:
-                avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] = \
-                    (avg_t.loc[avg_t['Model_name'] == 'GRU', n_col] * random.uniform(1.2, 1.25)).values
-                avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'STGCN', n_col] * random.uniform(1.06, 1.07)
-                avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'ASTGCN', n_col] * random.uniform(1.016, 1.02)
-                avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] = \
-                    avg_t.loc[avg_t['Model_name'] == 'DCRNN', n_col] * random.uniform(1.02, 1.04)
+            # Plot computed errors without per-model or random rescaling.
 
             mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 10)))
             mks = ['MAE', 'RMSE', 'MAPE']

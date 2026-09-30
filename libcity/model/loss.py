@@ -3,8 +3,27 @@ import numpy as np
 from sklearn.metrics import r2_score, explained_variance_score
 
 
+def _validate_torch_mask(preds, labels, mask):
+    if not torch.any(mask):
+        raise ValueError("Masked metric has no valid labels")
+    if not torch.all(torch.isfinite(labels[mask])):
+        raise ValueError("Masked metric has nonfinite valid labels")
+    if not torch.all(torch.isfinite(preds[mask])):
+        raise ValueError("Masked metric has nonfinite predictions at valid labels")
+
+
+def _validate_numpy_mask(preds, labels, mask):
+    if not np.any(mask):
+        raise ValueError("Masked metric has no valid labels")
+    if not np.all(np.isfinite(np.asarray(labels)[mask])):
+        raise ValueError("Masked metric has nonfinite valid labels")
+    if not np.all(np.isfinite(np.asarray(preds)[mask])):
+        raise ValueError("Masked metric has nonfinite predictions at valid labels")
+
+
 def masked_mae_loss(y_pred, y_true):
     mask = (y_true != 0).float()
+    _validate_torch_mask(y_pred, y_true, mask.bool())
     mask /= mask.mean()
     loss = torch.abs(y_pred - y_true)
     loss = loss * mask
@@ -15,11 +34,13 @@ def masked_mae_loss(y_pred, y_true):
 
 
 def masked_mae_torch(preds, labels, null_val=np.nan, min_s=1e-4):
+    labels = labels.clone()
     labels[torch.abs(labels) < min_s] = 0
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
         mask = labels.ne(null_val)
+    _validate_torch_mask(preds, labels, mask)
     mask = mask.float()
     mask /= torch.mean(mask)
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
@@ -52,6 +73,7 @@ def quantile_loss(preds, labels, delta=0.25):
 
 
 def masked_mape_torch(preds, labels, null_val=np.nan, eps=0, min_s=1e-4):
+    labels = labels.clone()
     labels[torch.abs(labels) < min_s] = 0
     if np.isnan(null_val) and eps != 0:
         loss = torch.abs((preds - labels) / (labels + eps))
@@ -60,6 +82,7 @@ def masked_mape_torch(preds, labels, null_val=np.nan, eps=0, min_s=1e-4):
         mask = ~torch.isnan(labels)
     else:
         mask = labels.ne(null_val)
+    _validate_torch_mask(preds, labels, mask)
     mask = mask.float()
     mask /= torch.mean(mask)
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
@@ -70,11 +93,13 @@ def masked_mape_torch(preds, labels, null_val=np.nan, eps=0, min_s=1e-4):
 
 
 def masked_mse_torch(preds, labels, null_val=np.nan, min_s=1e-4):
+    labels = labels.clone()
     labels[torch.abs(labels) < min_s] = 0
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
         mask = labels.ne(null_val)
+    _validate_torch_mask(preds, labels, mask)
     mask = mask.float()
     mask /= torch.mean(mask)
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
@@ -85,9 +110,10 @@ def masked_mse_torch(preds, labels, null_val=np.nan, min_s=1e-4):
 
 
 def masked_rmse_torch(preds, labels, null_val=np.nan, min_s=1e-4):
+    labels = labels.clone()
     labels[torch.abs(labels) < min_s] = 0
     return torch.sqrt(masked_mse_torch(preds=preds, labels=labels,
-                                       null_val=null_val))
+                                       null_val=null_val, min_s=min_s))
 
 
 def r2_score_torch(preds, labels):
@@ -113,10 +139,11 @@ def masked_mse_np(preds, labels, null_val=np.nan):
             mask = ~np.isnan(labels)
         else:
             mask = np.not_equal(labels, null_val)
+        _validate_numpy_mask(preds, labels, mask)
         mask = mask.astype('float32')
         mask /= np.mean(mask)
         rmse = np.square(np.subtract(preds, labels)).astype('float32')
-        rmse = np.nan_to_num(rmse * mask)
+        rmse = np.nan_to_num(rmse * mask, nan=0.0, posinf=np.inf, neginf=-np.inf)
         return np.mean(rmse)
 
 
@@ -126,10 +153,11 @@ def masked_mae_np(preds, labels, null_val=np.nan):
             mask = ~np.isnan(labels)
         else:
             mask = np.not_equal(labels, null_val)
+        _validate_numpy_mask(preds, labels, mask)
         mask = mask.astype('float32')
         mask /= np.mean(mask)
         mae = np.abs(np.subtract(preds, labels)).astype('float32')
-        mae = np.nan_to_num(mae * mask)
+        mae = np.nan_to_num(mae * mask, nan=0.0, posinf=np.inf, neginf=-np.inf)
         return np.mean(mae)
 
 
@@ -139,11 +167,12 @@ def masked_mape_np(preds, labels, null_val=np.nan):
             mask = ~np.isnan(labels)
         else:
             mask = np.not_equal(labels, null_val)
+        _validate_numpy_mask(preds, labels, mask)
         mask = mask.astype('float32')
         mask /= np.mean(mask)
         mape = np.abs(np.divide(np.subtract(
             preds, labels).astype('float32'), labels))
-        mape = np.nan_to_num(mask * mape)
+        mape = np.nan_to_num(mask * mape, nan=0.0, posinf=np.inf, neginf=-np.inf)
         return np.mean(mape)
 
 
