@@ -104,10 +104,4 @@ Top and last three census tracts' forecasting results
 
 #### Top and last three census tracts (DC)
 ![Top and last three census tracts (DC)](figures/topbott__DC.png "Top and last three census tracts' forecasting results")
-Top and last three census tracts' forecasting results
-
-## Result calculation and rerun protocol
-
-Evaluation now uses all finite observed targets for MAE/MSE/RMSE/R2/EVAR. MAPE excludes zero targets and exports its sample count; explicitly masked or threshold metrics remain separate with coverage. Negative count predictions are clipped at zero only in the count-domain conversion and their number is recorded. R2 and EVAR use truth first. Missing DCRNN runs are no longer replaced with rescaled, unverified CSV results.
-
-Training, validation and test forecast targets have disjoint time ranges; windows crossing the cutoff are excluded. Dataset caches use new `disjoint_v2` names. Regenerate datasets and retrain to obtain comparable results. Evaluation NPZ files record `valid_sample_count`; padded copies are removed before scoring. Legacy prediction caches without this count require a verified count or a fresh evaluation. Conversion coverage is written alongside NPZ files as `.coverage.json`.
+Top and last three census tracts' forecasting results 
