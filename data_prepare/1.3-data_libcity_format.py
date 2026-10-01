@@ -79,7 +79,7 @@ for sunit in ['CTractFIPS']:  # CTSFIPS, CBGFIPS
     CTS_Hourly['dayofweek'] = CTS_Hourly['Time'].dt.dayofweek
     CTS_Hourly['Weekend'] = CTS_Hourly['dayofweek'].isin([5, 6]).astype(int)
     CTS_Hourly = CTS_Hourly.sort_values(by=[sunit, 'Time']).reset_index(drop=True).reset_index()
-    CTS_Hourly_train = CTS_Hourly[CTS_Hourly['Time'] <= split_time].reset_index(drop=True)
+    CTS_Hourly_train = CTS_Hourly[CTS_Hourly['Time'] < split_time].reset_index(drop=True)
     CTS_Hourly['Time'] = CTS_Hourly['Time'].dt.strftime('%Y-%m-%dT%H:%M:%SZ')
     CTS_Hourly['type'] = 'state'
     print('Len of %s : %s' % (sunit, len(set(CTS_Hourly[sunit]))))

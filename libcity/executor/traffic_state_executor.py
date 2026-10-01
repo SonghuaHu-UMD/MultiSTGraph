@@ -1,3 +1,4 @@
+from libcity.evaluator.result_metrics import horizon_metrics
 import os
 import time
 import numpy as np
@@ -281,7 +282,12 @@ class TrafficStateExecutor(AbstractExecutor):
             # self.evaluator.save_result(self.evaluate_res_dir)
             y_preds = np.concatenate(y_preds, axis=0)
             y_truths = np.concatenate(y_truths, axis=0)  # concatenate on batch
-            outputs = {'prediction': y_preds, 'truth': y_truths}
+            valid_count = getattr(test_dataloader, 'valid_sample_count', len(test_dataloader.dataset))
+            if not 0 < valid_count <= len(y_preds):
+                raise ValueError('Invalid real test sample count')
+            y_preds, y_truths = y_preds[:valid_count], y_truths[:valid_count]
+            outputs = {'prediction': y_preds, 'truth': y_truths,
+                       'valid_sample_count': np.int64(valid_count)}
             filename = time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(time.time())) + '_' \
                        + self.config['model'] + '_' + self.config['dataset'] + '_predictions.npz'
             np.savez_compressed(os.path.join(self.evaluate_res_dir, filename), **outputs)
@@ -306,17 +312,14 @@ class TrafficStateExecutor(AbstractExecutor):
                               + self.config['model'] + '_' + self.config['dataset'] + '_predictions_trans.pkl'
                 P_R.to_pickle(os.path.join(self.evaluate_res_dir, filename_pr))
 
-                P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
+                P_R['negative_prediction'] = P_R['prediction_t'] < 0
+                P_R.loc[P_R['negative_prediction'], 'prediction_t'] = 0
                 m_m = []
-                s_small = 10
                 for rr in range(0, sh[1]):
-                    pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
-                    tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
-                    m_m.append([self.config['model'], rr, datetime.datetime.now(), loss.masked_mae_np(pr, tr),
-                                loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr), r2_score(pr, tr),
-                                explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+                    values = horizon_metrics(P_R, rr, threshold=10)
+                    m_m.append({'Model_name': self.config['model'], 'index': rr,
+                                'Model_time': datetime.datetime.now(), **values})
                 m_md = pd.DataFrame(m_m)
-                m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
                 m_md.to_csv(os.path.join(self.evaluate_res_dir,
                                          time.strftime("%Y_%m_%d_%H_%M_%S", time.localtime(time.time())) + '_' +
                                          self.config['model'] + '_' + self.config['dataset'] + '_trans.csv'))

@@ -8,7 +8,7 @@ class TrafficStatePointDataset(TrafficStateDataset):
     def __init__(self, config):
         super().__init__(config)
         self.cache_file_name = os.path.join('./libcity/cache/dataset_cache/',
-                                            'point_based_{}.npz'.format(self.parameters_str))
+                                            'point_based_disjoint_v2_{}.npz'.format(self.parameters_str))
 
     def _load_geo(self):
         """

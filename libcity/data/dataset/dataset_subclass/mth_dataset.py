@@ -26,7 +26,7 @@ class MTHDataset(TrafficStatePointDataset):
                 self.load_external) + '_' + str(self.load_dynamic) + '_' + str(self.add_time_in_day) + '_' + str(
                 self.add_day_in_week) + '_' + str(self.pad_with_last_sample)
         self.cache_file_name = os.path.join('./libcity/cache/dataset_cache/',
-                                            'point_based_{}.npz'.format(self.parameters_str))
+                                            'mth_disjoint_v2_{}.npz'.format(self.parameters_str))
 
     def _search_data(self, sequence_length, label_start_idx, num_for_predict, num_of_depend, units):
         """
@@ -51,7 +51,7 @@ class MTHDataset(TrafficStatePointDataset):
             # 从label_start_idx向左偏移，i是区间数，units*points_per_hour是区间长度(时间片为单位)
             start_idx = label_start_idx - int(self.points_per_hour * units * i)
             end_idx = start_idx + num_for_predict
-            if start_idx >= 0:
+            if start_idx >= 0 and end_idx <= label_start_idx:
                 x_idx.append((start_idx, end_idx))  # 每一段的长度是num_for_predict
             else:  # i越大越可能有问题，所以遇到错误直接范湖
                 return None
@@ -76,7 +76,7 @@ class MTHDataset(TrafficStatePointDataset):
                 target: 输出数据, (self.input_window, ..., feature_dim)
         """
         trend_sample, period_sample, closeness_sample = None, None, None
-        if label_start_idx + self.input_window > data_sequence.shape[0]:
+        if label_start_idx + self.output_window > data_sequence.shape[0]:
             return trend_sample, period_sample, closeness_sample, None
 
         if self.len_trend > 0:
@@ -121,11 +121,13 @@ class MTHDataset(TrafficStatePointDataset):
         """
         trend_samples, period_samples, closeness_samples, targets = [], [], [], []
         flag = 0
+        target_bounds = []
         for idx in range(df.shape[0]):
             sample = self._get_sample_indices(df, idx)
             if (sample[0] is None) and (sample[1] is None) and (sample[2] is None):
                 continue
             flag = 1
+            target_bounds.append((idx, idx + self.output_window - 1, len(df)))
             trend_sample, period_sample, closeness_sample, target = sample
             if self.len_trend > 0:
                 trend_sample = np.expand_dims(trend_sample, axis=0)  # (1,Tw,N,F)
@@ -157,6 +159,7 @@ class MTHDataset(TrafficStatePointDataset):
             self._logger.info('trend: ' + str(trend_samples.shape))
         sources = np.concatenate(sources, axis=1)  # (num_samples,Tw+Td+Th,N,F)
         targets = np.concatenate(targets, axis=0)  # (num_samples,Tp,N,F)
+        self._target_bounds = np.asarray(target_bounds)
         return sources, targets
 
     def get_data_feature(self):

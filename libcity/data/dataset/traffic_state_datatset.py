@@ -45,7 +45,7 @@ class TrafficStateDataset(AbstractDataset):
             + str(self.batch_size) + '_' + str(self.load_external) + '_' + str(self.load_dynamic) + '_' + str(
                 self.add_time_in_day) + '_' + str(self.add_day_in_week) + '_' + str(self.pad_with_last_sample)
         self.cache_file_name = os.path.join('./libcity/cache/dataset_cache/',
-                                            'traffic_state_{}.npz'.format(self.parameters_str))
+                                            'traffic_state_disjoint_v2_{}.npz'.format(self.parameters_str))
         self.cache_file_folder = './libcity/cache/dataset_cache/'
         ensure_dir(self.cache_file_folder)
         self.data_path = './raw_data/' + self.dataset + '/'
@@ -766,6 +766,8 @@ class TrafficStateDataset(AbstractDataset):
             y.append(y_t)
         x = np.stack(x, axis=0)
         y = np.stack(y, axis=0)
+        self._target_bounds = np.array([(t + 1, t + self.output_window, num_samples)
+                                        for t in range(min_t, max_t)])
         return x, y
 
     def _generate_data(self):
@@ -787,7 +789,7 @@ class TrafficStateDataset(AbstractDataset):
             ext_data = self._load_ext()
         else:
             ext_data = None
-        x_list, y_list = [], []
+        x_list, y_list, bounds_list = [], [], []
         for filename in data_files:
             df = self._load_dyna(filename)  # (len_time, ..., feature_dim)
             if self.load_external:
@@ -795,8 +797,10 @@ class TrafficStateDataset(AbstractDataset):
             x, y = self._generate_input_data(df)
             # x: (num_samples, input_length, ..., input_dim)
             # y: (num_samples, output_length, ..., output_dim)
+            bounds_list.append(self._target_bounds.copy())
             x_list.append(x)
             y_list.append(y)
+        self._target_bounds = np.concatenate(bounds_list)
         x = np.concatenate(x_list)
         y = np.concatenate(y_list)
         self._logger.info("Dataset created")
@@ -820,18 +824,25 @@ class TrafficStateDataset(AbstractDataset):
                 x_test: (num_samples, input_length, ..., feature_dim) \n
                 y_test: (num_samples, input_length, ..., feature_dim)
         """
-        test_rate = 1 - self.train_rate - self.eval_rate
-        num_samples = x.shape[0]
-        num_test = round(num_samples * test_rate)
-        num_train = round(num_samples * self.train_rate)
-        num_val = num_samples - num_test - num_train
-
-        # train
-        x_train, y_train = x[:num_train], y[:num_train]
-        # val
-        x_val, y_val = x[num_train: num_train + num_val], y[num_train: num_train + num_val]
-        # test
-        x_test, y_test = x[-num_test:], y[-num_test:]
+        if not (0 < self.train_rate < 1 and 0 < self.eval_rate < 1
+                and self.train_rate + self.eval_rate < 1):
+            raise ValueError('Training, validation and test fractions must be positive')
+        bounds = np.asarray(self._target_bounds)
+        if bounds.shape != (len(x), 3):
+            raise ValueError('Missing target time boundaries; rebuild the dataset')
+        starts, ends, lengths = bounds.T
+        train_end = np.floor(lengths * self.train_rate + 1e-9).astype(int)
+        validation_end = np.floor(lengths * (self.train_rate + self.eval_rate) + 1e-9).astype(int)
+        train_mask = ends < train_end
+        validation_mask = (starts >= train_end) & (ends < validation_end)
+        test_mask = starts >= validation_end
+        if not all(np.any(mask) for mask in [train_mask, validation_mask, test_mask]):
+            raise ValueError('Not enough target times for three disjoint partitions')
+        x_train, y_train = x[train_mask], y[train_mask]
+        x_val, y_val = x[validation_mask], y[validation_mask]
+        x_test, y_test = x[test_mask], y[test_mask]
+        self._logger.info('Excluded boundary-crossing windows: %s' %
+                          int((~(train_mask | validation_mask | test_mask)).sum()))
         self._logger.info("train\t" + "x: " + str(x_train.shape) + ", y: " + str(y_train.shape))
         self._logger.info("eval\t" + "x: " + str(x_val.shape) + ", y: " + str(y_val.shape))
         self._logger.info("test\t" + "x: " + str(x_test.shape) + ", y: " + str(y_test.shape))

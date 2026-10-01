@@ -50,6 +50,7 @@ def generate_dataloader(train_data, eval_data, test_data, feature_name,
             eval_dataloader: Dataloader composed of Batch (class) \n
             test_dataloader: Dataloader composed of Batch (class)
     """
+    real_test_count = len(test_data)
     if pad_with_last_sample:
         num_padding = (batch_size - (len(train_data) % batch_size)) % batch_size
         data_padding = np.repeat(train_data[-1:], num_padding, axis=0)
@@ -80,6 +81,7 @@ def generate_dataloader(train_data, eval_data, test_data, feature_name,
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=batch_size,
                                  num_workers=num_workers, collate_fn=collator,
                                  shuffle=False)
+    test_dataloader.valid_sample_count = real_test_count
     return train_dataloader, eval_dataloader, test_dataloader
 
 

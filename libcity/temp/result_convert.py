@@ -1,3 +1,4 @@
+from libcity.evaluator.result_metrics import evaluation_arrays, horizon_metrics
 import pandas as pd
 import numpy as np
 import glob
@@ -20,7 +21,7 @@ def get_gp_data(filenames):
             fec = pd.read_csv(nec[0])
             fec['Model_name'] = model_name[0].split('\\')[-1].split('_')[0]
             fec['Model_time'] = datetime.datetime.fromtimestamp(os.path.getmtime(nec[0]))
-            all_results = all_results.append(fec)
+            all_results = pd.concat([all_results, fec], ignore_index=True)
     all_results = all_results.reset_index()
     return all_results
 
@@ -35,25 +36,28 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
             model_name = model_name[0].split('\\')[-1].split('_')[0]
             print(model_name)
             Predict_R = np.load(filename[0])
-            sh = Predict_R['prediction'].shape
+            pred, truth = evaluation_arrays(Predict_R)
+            sh = pred.shape
             print(sh)  # no of batches, output_window, no of nodes, output dim
             ct_ma = np.tile(ct_visit_mstd[['All_m']].values, (sh[0], sh[1], 1, sh[3]))
             ct_sa = np.tile(ct_visit_mstd[['All_std']].values, (sh[0], sh[1], 1, sh[3]))
             ct_id = np.tile(ct_visit_mstd[['CTractFIPS']].values, (sh[0], sh[1], 1, sh[3]))
             ahead_step = np.tile(np.expand_dims(np.array(range(0, sh[1])), axis=(1, 2)), (sh[0], 1, sh[2], sh[3]))
-            P_R = pd.DataFrame({'prediction': Predict_R['prediction'].flatten(), 'truth': Predict_R['truth'].flatten(),
+            P_R = pd.DataFrame({'prediction': pred.flatten(), 'truth': truth.flatten(),
                                 'All_m': ct_ma.flatten(), 'All_std': ct_sa.flatten(), 'CTractFIPS': ct_id.flatten(),
                                 'ahead_step': ahead_step.flatten()})
             P_R['prediction_t'] = P_R['prediction'] * P_R['All_std'] + P_R['All_m']
             P_R['truth_t'] = P_R['truth'] * P_R['All_std'] + P_R['All_m']
-            P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
-            # not consider small volume
+            P_R['negative_prediction'] = P_R['prediction_t'] < 0
+            P_R.loc[P_R['negative_prediction'], 'prediction_t'] = 0
+            # Main metrics cover all observed targets; threshold metrics are separate.
+            coverage = []
             for rr in range(0, sh[1]):
-                pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
-                tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
+                values = horizon_metrics(P_R, rr, threshold=s_small)
+                coverage.append({'Model_name': model_name, 'horizon': rr, 'cache': filename[0], **values})
                 m_m.append([model_name, rr, datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])),
-                            loss.masked_mae_np(pr, tr), loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr),
-                            r2_score(pr, tr), explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+                            *[values[name] for name in ['MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']]])
+            pd.DataFrame(coverage).to_json(filename[0] + '.coverage.json', orient='records', indent=2)
         else:
             print(kk + '----NULL----')
     return m_m
@@ -64,7 +68,7 @@ filenames = glob.glob(results_path)
 filenames = [var for var in filenames if 'dataset_cache' not in var]
 all_results = get_gp_data(filenames)
 if len(all_results) > 0:
-    all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
+    all_results_avg = all_results.groupby(['Model_name']).mean(numeric_only=True).sort_values(by='MAE').reset_index()
     all_results_avg.to_csv(r".\results\M_average.csv")
 
     # Re-transform the data
@@ -73,5 +77,5 @@ if len(all_results) > 0:
     m_m = transfer_gp_data(filenames, ct_visit_mstd)
     m_md = pd.DataFrame(m_m)
     m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
-    all_results_avg_t = m_md.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
+    all_results_avg_t = m_md.groupby(['Model_name']).mean(numeric_only=True).sort_values(by='MAE').reset_index()
     all_results_avg_t.to_csv(r".\results\M_truth.csv")

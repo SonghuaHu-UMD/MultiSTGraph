@@ -1,3 +1,4 @@
+from libcity.evaluator.result_metrics import evaluation_arrays, horizon_metrics
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,7 +38,7 @@ def get_gp_data(filenames):
             fec = pd.read_csv(nec[0])
             fec['Model_name'] = model_name[0].split('\\')[-1].split('_')[0]
             fec['Model_time'] = datetime.datetime.fromtimestamp(os.path.getmtime(nec[0]))
-            all_results = all_results.append(fec)
+            all_results = pd.concat([all_results, fec], ignore_index=True)
     all_results = all_results.reset_index()
     return all_results
 
@@ -52,9 +53,8 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
             model_name = model_name[0].split('\\')[-1].split('_')[0]
             print(model_name)
             Predict_R = np.load(filename[0])
-            # drop the last batch
-            pred = Predict_R['prediction'][:-16, :, :, :]
-            truth = Predict_R['truth'][:-16, :, :, :]
+            # Use the measured number of real samples in the cache
+            pred, truth = evaluation_arrays(Predict_R)
             sh = pred.shape
             print(sh)  # no of batches, output_window, no of nodes, output dim
             ct_ma = np.tile(ct_visit_mstd[['All_m']].values, (sh[0], sh[1], 1, sh[3]))
@@ -66,15 +66,17 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
                                 'ahead_step': ahead_step.flatten()})
             P_R['prediction_t'] = P_R['prediction'] * P_R['All_std'] + P_R['All_m']
             P_R['truth_t'] = P_R['truth'] * P_R['All_std'] + P_R['All_m']
-            P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
+            P_R['negative_prediction'] = P_R['prediction_t'] < 0
+            P_R.loc[P_R['negative_prediction'], 'prediction_t'] = 0
 
-            # not consider small volume
+            # Main metrics cover all observed targets; threshold metrics are separate.
+            coverage = []
             for rr in range(0, sh[1]):
-                pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
-                tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
+                values = horizon_metrics(P_R, rr, threshold=s_small)
+                coverage.append({'Model_name': model_name, 'horizon': rr, 'cache': filename[0], **values})
                 m_m.append([model_name, rr, datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])),
-                            loss.masked_mae_np(pr, tr), loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr),
-                            r2_score(pr, tr), explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+                            *[values[name] for name in ['MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']]])
+            pd.DataFrame(coverage).to_json(filename[0] + '.coverage.json', orient='records', indent=2)
         else:
             print(kk + '----NULL----')
     return m_m
@@ -97,7 +99,8 @@ for kk in filenames:
 
 # Get data
 Predict_R = np.load(filename[0])
-sh = Predict_R['prediction'].shape
+pred, truth = evaluation_arrays(Predict_R)
+sh = pred.shape
 print(sh)
 ct_visit_mstd = pd.read_pickle(r'.\other_data\%s_%s_visit_mstd.pkl' % (sunit, time_sp)).sort_values(
     by=sunit).reset_index(drop=True)
@@ -107,7 +110,7 @@ ct_id = np.tile(ct_visit_mstd[[sunit]].values, (sh[0], sh[1], 1, sh[3]))
 ahead_step = np.tile(np.expand_dims(np.array(range(0, sh[1])), axis=(1, 2)), (sh[0], 1, sh[2], sh[3]))
 ht_id = np.tile(np.expand_dims(np.array(range(0, sh[0])), axis=(1, 2, 3)), (1, sh[1], sh[2], sh[3]))
 P_R = pd.DataFrame(
-    {'prediction': Predict_R['prediction'].flatten(), 'truth': Predict_R['truth'].flatten(), 'A_m': ct_ma.flatten(),
+    {'prediction': pred.flatten(), 'truth': truth.flatten(), 'A_m': ct_ma.flatten(),
      'A_std': ct_sa.flatten(), sunit: ct_id.flatten(), 'ahead_step': ahead_step.flatten(), 'hour_id': ht_id.flatten()})
 P_R['prediction_t'] = P_R['prediction'] * P_R['A_std'] + P_R['A_m']
 P_R['truth_t'] = P_R['truth'] * P_R['A_std'] + P_R['A_m']
@@ -125,7 +128,7 @@ P_R['weekend'] = P_R['Date'].dt.dayofweek.isin([5, 6]).astype(int)
 
 # Plot the top and last census tracts
 P_R['MAPE'] = abs(P_R['prediction_t'] - P_R['truth_t']) / P_R['truth_t']
-rank_gp = P_R[P_R['truth_t'] > 6].groupby([sunit]).mean()['MAPE'].sort_values().reset_index()
+rank_gp = P_R[P_R['truth_t'] > 6].groupby([sunit]).mean(numeric_only=True)['MAPE'].sort_values().reset_index()
 if area_c == '_BM':
     last_3 = list(rank_gp[sunit][-7:-4])
     top_3 = list(rank_gp[sunit][0:3])
@@ -197,11 +200,11 @@ for s_small in [1e-4] + list(range(1, 11)):
         tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
         m_m.append([s_small, rr, datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])),
                     loss.masked_mae_np(pr, tr), loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr),
-                    r2_score(pr, tr), explained_variance_score(pr, tr), loss.masked_mape_np(pr, tr)])
+                    r2_score(tr, pr), explained_variance_score(tr, pr), loss.masked_mape_np(pr, tr)])
 m_md = pd.DataFrame(m_m)
 m_md.columns = ['s_small', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
-avg_t = m_md.groupby(['s_small', 'index']).mean().sort_values(by='MAE').reset_index()
-m_md.groupby(['s_small']).mean().sort_values(by='MAE')
+avg_t = m_md.groupby(['s_small', 'index']).mean(numeric_only=True).sort_values(by='MAE').reset_index()
+m_md.groupby(['s_small']).mean(numeric_only=True).sort_values(by='MAE')
 mpl.rcParams['axes.prop_cycle'] = plt.cycler("color", plt.cm.coolwarm(np.linspace(0, 1, 11)))
 l_styles = cycle(['-', '--', '-.'])
 m_styles = cycle(['o', '^', '*'])

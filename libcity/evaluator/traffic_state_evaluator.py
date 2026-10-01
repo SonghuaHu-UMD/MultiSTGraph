@@ -1,3 +1,5 @@
+import numpy as np
+from libcity.evaluator.result_metrics import measured_metrics
 import os
 import json
 import datetime
@@ -32,103 +34,37 @@ class TrafficStateEvaluator(AbstractEvaluator):
                 raise ValueError('the metric {} is not allowed in TrafficStateEvaluator'.format(str(metric)))
 
     def collect(self, batch):
-        """
-        收集一 batch 的评估输入
-
-        Args:
-            batch(dict): 输入数据，字典类型，包含两个Key:(y_true, y_pred):
-                batch['y_true']: (num_samples/batch_size, timeslots, ..., feature_dim)
-                batch['y_pred']: (num_samples/batch_size, timeslots, ..., feature_dim)
-        """
-        if not isinstance(batch, dict):
-            raise TypeError('evaluator.collect input is not a dict of user')
-        y_true = batch['y_true']  # tensor
-        y_pred = batch['y_pred']  # tensor
-        if y_true.shape != y_pred.shape:
-            raise ValueError("batch['y_true'].shape is not equal to batch['y_pred'].shape")
+        y_true = batch['y_true'].detach().cpu().numpy()
+        y_pred = batch['y_pred'].detach().cpu().numpy()
+        if y_true.shape != y_pred.shape or y_true.ndim < 2:
+            raise ValueError('Prediction and target shapes differ')
+        if self.len_timeslots and self.len_timeslots != y_true.shape[1]:
+            raise ValueError('Horizon differs across evaluation batches')
         self.len_timeslots = y_true.shape[1]
-        for i in range(1, self.len_timeslots + 1):
-            for metric in self.metrics:
-                if metric + '@' + str(i) not in self.intermediate_result:
-                    self.intermediate_result[metric + '@' + str(i)] = []
-        if self.mode.lower() == 'average':  # 前i个时间步的平均loss
-            for i in range(1, self.len_timeslots + 1):
-                for metric in self.metrics:
-                    if metric == 'masked_MAE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mae_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
-                    elif metric == 'masked_MSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mse_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
-                    elif metric == 'masked_RMSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_rmse_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
-                    elif metric == 'masked_MAPE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mape_torch(y_pred[:, :i], y_true[:, :i], 0, min_s=self.min_s).item())
-                    elif metric == 'MAE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mae_torch(y_pred[:, :i], y_true[:, :i]).item())
-                    elif metric == 'MSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mse_torch(y_pred[:, :i], y_true[:, :i]).item())
-                    elif metric == 'RMSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_rmse_torch(y_pred[:, :i], y_true[:, :i]).item())
-                    elif metric == 'MAPE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mape_torch(y_pred[:, :i], y_true[:, :i]).item())
-                    elif metric == 'R2':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.r2_score_torch(y_pred[:, :i], y_true[:, :i]).item())
-                    elif metric == 'EVAR':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.explained_variance_score_torch(y_pred[:, :i], y_true[:, :i]).item())
-        elif self.mode.lower() == 'single':  # 第i个时间步的loss
-            for i in range(1, self.len_timeslots + 1):
-                for metric in self.metrics:
-                    if metric == 'masked_MAE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mae_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
-                    elif metric == 'masked_MSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mse_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
-                    elif metric == 'masked_RMSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_rmse_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
-                    elif metric == 'masked_MAPE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mape_torch(y_pred[:, i - 1], y_true[:, i - 1], 0, min_s=self.min_s).item())
-                    elif metric == 'MAE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mae_torch(y_pred[:, i - 1], y_true[:, i - 1]).item())
-                    elif metric == 'MSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mse_torch(y_pred[:, i - 1], y_true[:, i - 1]).item())
-                    elif metric == 'RMSE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_rmse_torch(y_pred[:, i - 1], y_true[:, i - 1]).item())
-                    elif metric == 'MAPE':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.masked_mape_torch(y_pred[:, i - 1], y_true[:, i - 1]).item())
-                    elif metric == 'R2':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.r2_score_torch(y_pred[:, i - 1], y_true[:, i - 1]).item())
-                    elif metric == 'EVAR':
-                        self.intermediate_result[metric + '@' + str(i)].append(
-                            loss.explained_variance_score_torch(y_pred[:, i - 1], y_true[:, i - 1]).item())
-        else:
-            raise ValueError('Error parameter evaluator_mode={}, please set `single` or `average`.'.format(self.mode))
+        self.intermediate_result.setdefault('truth', []).append(y_true)
+        self.intermediate_result.setdefault('prediction', []).append(y_pred)
+
 
     def evaluate(self):
-        """
-        返回之前收集到的所有 batch 的评估结果
-        """
+        truth = np.concatenate(self.intermediate_result['truth'])
+        prediction = np.concatenate(self.intermediate_result['prediction'])
         for i in range(1, self.len_timeslots + 1):
+            if self.mode.lower() == 'single':
+                tr, pr = truth[:, i-1], prediction[:, i-1]
+            elif self.mode.lower() == 'average':
+                tr, pr = truth[:, :i], prediction[:, :i]
+            else:
+                raise ValueError('Unknown evaluator mode')
+            full = measured_metrics(pr, tr)
+            selected = np.isfinite(tr) & (np.abs(tr) >= self.min_s) & (tr != 0)
+            masked = measured_metrics(pr[selected], tr[selected])
             for metric in self.metrics:
-                self.result[metric + '@' + str(i)] = sum(self.intermediate_result[metric + '@' + str(i)]) / \
-                                                     len(self.intermediate_result[metric + '@' + str(i)])
+                self.result[metric + '@' + str(i)] = (masked[metric[7:]] if metric.startswith('masked_') else full[metric])
+            for count in ['observed_count', 'total_count', 'mape_count']:
+                self.result[count + '@' + str(i)] = full[count]
+            self.result['masked_sample_count@' + str(i)] = masked['sample_count']
         return self.result
+
 
     def save_result(self, save_path, filename=None):
         """
@@ -154,21 +90,23 @@ class TrafficStateEvaluator(AbstractEvaluator):
 
         dataframe = {}
         if 'csv' in self.save_modes:
-            for metric in self.metrics:
+            columns = self.metrics + ['observed_count', 'total_count', 'mape_count', 'masked_sample_count']
+            for metric in columns:
                 dataframe[metric] = []
             for i in range(1, self.len_timeslots + 1):
-                for metric in self.metrics:
+                for metric in columns:
                     dataframe[metric].append(self.result[metric + '@' + str(i)])
             dataframe = pd.DataFrame(dataframe, index=range(1, self.len_timeslots + 1))
             dataframe.to_csv(os.path.join(save_path, '{}.csv'.format(filename)), index=False)
             self._logger.info('Evaluate result is saved at ' + os.path.join(save_path, '{}.csv'.format(filename)))
-            self._logger.info("\n" + str(dataframe[['MAE', 'masked_MAE', 'masked_MAPE', 'masked_RMSE']]))
-            self._logger.info("\n" + str(dataframe[['MAE', 'masked_MAE', 'masked_MAPE', 'masked_RMSE']].mean()))
+            self._logger.info("\n" + str(dataframe))
+            self._logger.info("\n" + str(dataframe.mean()))
         return dataframe
 
     def clear(self):
         """
         清除之前收集到的 batch 的评估信息，适用于每次评估开始时进行一次清空，排除之前的评估输入的影响。
         """
+        self.len_timeslots = 0
         self.result = {}
         self.intermediate_result = {}

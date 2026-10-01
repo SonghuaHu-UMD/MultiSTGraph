@@ -1,3 +1,4 @@
+from libcity.evaluator.result_metrics import evaluation_arrays, horizon_metrics
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,7 +27,7 @@ def get_gp_data(filenames):
             fec = pd.read_csv(nec[0])
             fec['Model_name'] = model_name[0].split('\\')[-1].split('_')[0]
             fec['Model_time'] = datetime.datetime.fromtimestamp(os.path.getmtime(nec[0]))
-            all_results = all_results.append(fec)
+            all_results = pd.concat([all_results, fec], ignore_index=True)
     all_results = all_results.reset_index()
     return all_results
 
@@ -41,9 +42,8 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
             model_name = model_name[0].split('\\')[-1].split('_')[0]
             print(model_name)
             Predict_R = np.load(filename[0])
-            # drop the last batch
-            pred = Predict_R['prediction'][:-16, :, :, :]
-            truth = Predict_R['truth'][:-16, :, :, :]
+            # Use the measured number of real samples in the cache
+            pred, truth = evaluation_arrays(Predict_R)
             sh = pred.shape
             print(sh)  # no of batches, output_window, no of nodes, output dim
             ct_ma = np.tile(ct_visit_mstd[['All_m']].values, (sh[0], sh[1], 1, sh[3]))
@@ -55,15 +55,17 @@ def transfer_gp_data(filenames, ct_visit_mstd, s_small=10):
                                 'ahead_step': ahead_step.flatten()})
             P_R['prediction_t'] = P_R['prediction'] * P_R['All_std'] + P_R['All_m']
             P_R['truth_t'] = P_R['truth'] * P_R['All_std'] + P_R['All_m']
-            P_R.loc[P_R['prediction_t'] < 0, 'prediction_t'] = 0
+            P_R['negative_prediction'] = P_R['prediction_t'] < 0
+            P_R.loc[P_R['negative_prediction'], 'prediction_t'] = 0
 
-            # not consider small volume
+            # Main metrics cover all observed targets; threshold metrics are separate.
+            coverage = []
             for rr in range(0, sh[1]):
-                pr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'prediction_t']
-                tr = P_R.loc[(P_R['ahead_step'] == rr) & (P_R['truth_t'] > s_small), 'truth_t']
+                values = horizon_metrics(P_R, rr, threshold=s_small)
+                coverage.append({'Model_name': model_name, 'horizon': rr, 'cache': filename[0], **values})
                 m_m.append([model_name, rr, datetime.datetime.fromtimestamp(os.path.getmtime(filename[0])),
-                            loss.masked_mae_np(pr, tr), loss.masked_mse_np(pr, tr), loss.masked_rmse_np(pr, tr),
-                            r2_score(tr, pr), explained_variance_score(tr, pr), loss.masked_mape_np(pr, tr)])
+                            *[values[name] for name in ['MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']]])
+            pd.DataFrame(coverage).to_json(filename[0] + '.coverage.json', orient='records', indent=2)
         else:
             print(kk + '----NULL----')
     return m_m
@@ -78,7 +80,7 @@ for time_sp in time_sps:
         filenames = glob.glob(results_path + r"%s steps\%s\%s\*" % (n_step, nfold, time_sp))
         all_results = get_gp_data(filenames)
         if len(all_results) > 0:
-            all_results_avg = all_results.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
+            all_results_avg = all_results.groupby(['Model_name']).mean(numeric_only=True).sort_values(by='MAE').reset_index()
             # all_results_avg = all_results_avg[~all_results_avg['Model_name'].isin(['STSGCN', 'STTN', 'Seq2Seq'])]
             all_results_avg = all_results_avg.sort_values(by='MAE').reset_index()
             n_col = all_results_avg.select_dtypes('number').columns
@@ -91,7 +93,7 @@ for time_sp in time_sps:
             m_m = transfer_gp_data(filenames, ct_visit_mstd)
             m_md = pd.DataFrame(m_m)
             m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
-            avg_t = m_md.groupby(['Model_name']).mean().sort_values(by='MAE').reset_index()
+            avg_t = m_md.groupby(['Model_name']).mean(numeric_only=True).sort_values(by='MAE').reset_index()
             avg_t = avg_t[~avg_t['Model_name'].isin(['STSGCN', 'STTN', 'Seq2Seq', 'TGCN'])]
             avg_t.to_csv(
                 r"D:\ST_Graph\Results\final\M_%s_truth_%s_steps_%s_%s.csv" % (nfold, n_step, sunit, time_sp))
@@ -106,7 +108,7 @@ for time_sp in time_sps:
             nfold, n_step, sunit, time_sp), index_col=0)
         avg_t['Step_'] = n_step
         avg_t['data'] = time_sp
-        All_metrics = All_metrics.append(avg_t[['Model_name', 'MAE', 'RMSE', 'R2', 'MAPE', 'Step_', 'data']])
+        All_metrics = pd.concat([All_metrics, avg_t[['Model_name', 'MAE', 'RMSE', 'R2', 'MAPE', 'Step_', 'data']]], ignore_index=True)
 
 All_metrics_base = All_metrics[All_metrics['Model_name'] == 'MultiATGCN']
 All_metrics_base.columns = ['B_Model_name', 'B_MAE', 'B_RMSE', 'B_R2', 'B_MAPE', 'Step_', 'data']
@@ -139,7 +141,7 @@ for time_sp in time_sps:
     all_results = get_gp_data(filenames)
     all_results = all_results.sort_values(by=['Model_time', 'index']).reset_index(drop=True)
     all_results['Para'] = np.repeat(para_list, n_steps * n_repeat)
-    all_results_avg = all_results.groupby(['Para']).mean().sort_values(by='MAE').reset_index()
+    all_results_avg = all_results.groupby(['Para']).mean(numeric_only=True).sort_values(by='MAE').reset_index()
     all_results_avg.to_csv(r"D:\ST_Graph\Results\results_%s_gp_%s_%s.csv" % (para_name, sunit, time_sp))
 
     # Re-transform the data
@@ -151,7 +153,7 @@ for time_sp in time_sps:
     m_md.columns = ['Model_name', 'index', 'Model_time', 'MAE', 'MSE', 'RMSE', 'R2', 'EVAR', 'MAPE']
     m_md = m_md.sort_values(by=['Model_time', 'index']).reset_index(drop=True)
     m_md['Para'] = np.repeat(para_list, n_steps * n_repeat)
-    avg_t = m_md.groupby(['Para'])[['MAE', 'RMSE', 'MAPE']].mean().reset_index()
+    avg_t = m_md.groupby(['Para'])[['MAE', 'RMSE', 'MAPE']].mean(numeric_only=True).reset_index()
     avg_t.columns = ['Para', 'MAE_mean', 'RMSE_mean', 'MAPE_mean']
     avg_std = m_md.groupby(['Para'])[['MAE', 'RMSE', 'MAPE']].std().reset_index()
     avg_std.columns = ['Para', 'MAE_std', 'RMSE_std', 'MAPE_std']
